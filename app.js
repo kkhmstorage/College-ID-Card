@@ -12,22 +12,26 @@ const INSTITUTIONS = {
         arabicName: "كلية الغيث للآداب والعلوم الإسلامية - للبنات",
         shortName: "AL-GAITH",
         address: "P.O Karthala, Malappuram, Pin: 679571",
+        affiliation: "Affiliated to Coordination of Islamic Colleges",
         phone: "0494 2608283, 8590658550",
         website: "https://kkhmstorage.github.io/markaz-wafy-college/",
         themeColor: "#173f8a",
         accentColor: "#3b82f6",
-        tagline: "Empowering Women Through Knowledge"
+        tagline: "Empowering Women Through Knowledge",
+        logo: "assets/college_logo.png"
     },
     kkhm: {
         name: "KKHM ISLAMIC & ARTS COLLEGE",
         arabicName: "كلية كي كي حسن مسليار الإسلامية والآداب",
         shortName: "KKHM",
         address: "P.O Karthala, Malappuram, Pin: 679571",
+        affiliation: "Affiliated to Coordination of Islamic Colleges",
         phone: "0494 2608283, 8590658550",
         website: "https://kkhmstorage.github.io/markaz-wafy-college/",
         themeColor: "#173f8a",
         accentColor: "#3b82f6",
-        tagline: "Enlightening Minds, Building Futures"
+        tagline: "Enlightening Minds, Building Futures",
+        logo: "assets/college_logo.png"
     }
 };
 
@@ -39,6 +43,7 @@ let state = {
     currentBatch: '2026-2032',
     activeFilterBatch: 'all',
     searchQuery: '',
+    currentControlTab: 'designer', // designer | recent
     userPhoto: null,
     logoImage: null,
     qrImage: null,
@@ -52,7 +57,7 @@ let state = {
     dragStartY: 0,
     dragInitOffsetX: 0,
     dragInitOffsetY: 0,
-    // Family members for Visitor back side
+    // Family members for Visitor back side (4 members)
     familyMembers: [
         {
             name: "M ABOOBACKER",
@@ -61,16 +66,22 @@ let state = {
             photoSrc: "assets/father_sample.jpg"
         },
         {
+            name: "MUMTHAZ",
+            relation: "MOTHER",
+            photo: null,
+            photoSrc: "assets/mother_sample.jpg"
+        },
+        {
             name: "FARSEENA",
             relation: "SISTER",
             photo: null,
             photoSrc: "assets/sister_sample.jpg"
         },
         {
-            name: "MUMTHAZ",
-            relation: "MOTHER",
+            name: "MOHAMMED",
+            relation: "BROTHER",
             photo: null,
-            photoSrc: "assets/mother_sample.jpg"
+            photoSrc: "assets/brother_sample.jpg"
         }
     ]
 };
@@ -85,6 +96,7 @@ const photoDragOverlay = document.getElementById('photoDragOverlay');
 const instArabicNameInput = document.getElementById('instArabicName');
 const instNameInput = document.getElementById('instName');
 const instAddressInput = document.getElementById('instAddress');
+const instAffiliationInput = document.getElementById('instAffiliation');
 const instPhoneInput = document.getElementById('instPhone');
 const instWebsiteInput = document.getElementById('instWebsite');
 
@@ -93,11 +105,16 @@ const personNameInput = document.getElementById('personName');
 const personIdInput = document.getElementById('personId');
 const personRoleInput = document.getElementById('personRole');
 const personBloodInput = document.getElementById('personBlood');
+const personGuardianInput = document.getElementById('personGuardian');
+const personValidityInput = document.getElementById('personValidity');
 const personPhoneInput = document.getElementById('personPhone');
 const personDobInput = document.getElementById('personDob');
 const personAddressInput = document.getElementById('personAddress');
 const staffDeptInput = document.getElementById('staffDept');
 const staffJoinDateInput = document.getElementById('staffJoinDate');
+
+// Quick search input
+const quickAdmSearchInput = document.getElementById('quickAdmSearchInput');
 
 // Visitor inputs (Front side)
 const visitorStudentNameInput = document.getElementById('visitorStudentName');
@@ -134,11 +151,20 @@ function init() {
     loadSampleImages();
     initBatchDatabase();
     updateBatchCountBadges();
+    renderRecentWorksList();
     drawCard();
 }
 
 function loadSampleImages() {
-    // 1. Student Sample Photo
+    // 1. College Logo
+    const logoImg = new Image();
+    logoImg.onload = () => {
+        state.logoImage = logoImg;
+        drawCard();
+    };
+    logoImg.src = 'assets/college_logo.png';
+
+    // 2. Student Sample Photo
     const studentImg = new Image();
     studentImg.onload = () => {
         state.userPhoto = studentImg;
@@ -149,7 +175,7 @@ function loadSampleImages() {
     };
     studentImg.src = 'assets/student_sample.jpg';
 
-    // 2. Family Members Sample Photos
+    // 3. Family Members Sample Photos (4 Members)
     state.familyMembers.forEach((member, idx) => {
         if (member.photoSrc) {
             const fImg = new Image();
@@ -166,8 +192,9 @@ function loadSampleImages() {
 function setupEventListeners() {
     // Text inputs trigger redraw
     const allInputs = [
-        instArabicNameInput, instNameInput, instAddressInput, instPhoneInput, instWebsiteInput,
+        instArabicNameInput, instNameInput, instAddressInput, instAffiliationInput, instPhoneInput, instWebsiteInput,
         personNameInput, personIdInput, personRoleInput, personBloodInput,
+        personGuardianInput, personValidityInput,
         personPhoneInput, personDobInput, personAddressInput,
         staffDeptInput, staffJoinDateInput,
         visitorStudentNameInput, visitorStudentIdInput,
@@ -227,8 +254,19 @@ function switchInstitution(instKey) {
     if (instArabicNameInput) instArabicNameInput.value = inst.arabicName;
     if (instNameInput) instNameInput.value = inst.name;
     if (instAddressInput) instAddressInput.value = inst.address;
+    if (instAffiliationInput) instAffiliationInput.value = inst.affiliation || 'Affiliated to Coordination of Islamic Colleges';
     if (instPhoneInput) instPhoneInput.value = inst.phone;
     if (instWebsiteInput) instWebsiteInput.value = inst.website;
+
+    // Reload institutional logo if present
+    if (inst.logo) {
+        const logoImg = new Image();
+        logoImg.onload = () => {
+            state.logoImage = logoImg;
+            drawCard();
+        };
+        logoImg.src = inst.logo;
+    }
 
     // Update theme colors
     if (themeColorInput) themeColorInput.value = inst.themeColor;
@@ -490,30 +528,18 @@ function updateDragOverlayPosition() {
     const scaleX = canvasRect.width / canvas.width;
     const scaleY = canvasRect.height / canvas.height;
 
-    if (state.currentCardType === 'visitor') {
-        const photoW = 220;
-        const photoH = 260;
-        const photoX = (canvas.width - photoW) / 2;
-        const photoY = 225;
+    // Both visitor and student/staff cards use slightly curved square photo (210 x 250, radius 16)
+    const photoW = 210;
+    const photoH = 250;
+    const photoX = (canvas.width - photoW) / 2;
+    const photoY = 225;
 
-        photoDragOverlay.style.width = (photoW * scaleX) + 'px';
-        photoDragOverlay.style.height = (photoH * scaleY) + 'px';
-        photoDragOverlay.style.left = (photoX * scaleX) + 'px';
-        photoDragOverlay.style.top = (photoY * scaleY) + 'px';
-        photoDragOverlay.style.borderRadius = (22 * scaleX) + 'px';
-        photoDragOverlay.classList.add('active');
-    } else {
-        const centerX = canvas.width / 2;
-        const centerY = 340;
-        const radius = 120;
-
-        photoDragOverlay.style.width = (radius * 2 * scaleX) + 'px';
-        photoDragOverlay.style.height = (radius * 2 * scaleY) + 'px';
-        photoDragOverlay.style.left = ((centerX - radius) * scaleX) + 'px';
-        photoDragOverlay.style.top = ((centerY - radius) * scaleY) + 'px';
-        photoDragOverlay.style.borderRadius = '50%';
-        photoDragOverlay.classList.add('active');
-    }
+    photoDragOverlay.style.width = (photoW * scaleX) + 'px';
+    photoDragOverlay.style.height = (photoH * scaleY) + 'px';
+    photoDragOverlay.style.left = (photoX * scaleX) + 'px';
+    photoDragOverlay.style.top = (photoY * scaleY) + 'px';
+    photoDragOverlay.style.borderRadius = (16 * scaleX) + 'px';
+    photoDragOverlay.classList.add('active');
 }
 
 function setupDragHandlers() {
@@ -586,7 +612,7 @@ function endDrag() {
 
 
 // ═══════════════════════════════════════════════
-//  QR CODE GENERATION
+//  QR CODE GENERATION (COMPREHENSIVE DETAILS)
 // ═══════════════════════════════════════════════
 
 function generateQR() {
@@ -594,18 +620,61 @@ function generateQR() {
     if (!qrContainer) return;
     qrContainer.innerHTML = '';
 
+    const inst = INSTITUTIONS[state.currentInstitution] || {};
+    const instName = (instNameInput && instNameInput.value) || inst.name || 'KKHM ISLAMIC & ARTS COLLEGE';
+    const affiliation = (instAffiliationInput && instAffiliationInput.value) || inst.affiliation || 'Affiliated to Coordination of Islamic Colleges';
+    const website = (instWebsiteInput && instWebsiteInput.value) || inst.website || 'https://kkhmstorage.github.io/markaz-wafy-college/';
+    const helpline = (instPhoneInput && instPhoneInput.value) || inst.phone || '0494 2608283, 8590658550';
+
     let qrData = '';
-    const inst = INSTITUTIONS[state.currentInstitution];
 
     if (state.currentCardType === 'visitor') {
-        const studentName = visitorStudentNameInput ? visitorStudentNameInput.value : '';
-        const admNo = visitorStudentIdInput ? visitorStudentIdInput.value : '';
-        qrData = `VISITOR PASS - AUTHORIZED FAMILY\n${inst.name}\nStudent: ${studentName}\nAdm No: ${admNo}\nContact: ${visitorStudentContactInput.value}\nDuration: ${visitorDurationInput.value}`;
-    } else {
-        qrData = `${state.currentCardType.toUpperCase()} ID CARD\n${inst.name}\nName: ${personNameInput.value}\nID: ${personIdInput.value}\n${state.currentCardType === 'student' ? 'Class' : 'Designation'}: ${personRoleInput.value}\nPhone: ${personPhoneInput.value}\nWebsite: ${instWebsiteInput.value}`;
-    }
+        const studentName = visitorStudentNameInput ? visitorStudentNameInput.value.trim() : 'AFRIN FATHIMA';
+        const admNo = visitorStudentIdInput ? visitorStudentIdInput.value.trim() : '747';
+        const addr1 = visitorStudentAddr1Input ? visitorStudentAddr1Input.value.trim() : '';
+        const addr2 = visitorStudentAddr2Input ? visitorStudentAddr2Input.value.trim() : '';
+        const contact = visitorStudentContactInput ? visitorStudentContactInput.value.trim() : '';
+        const duration = visitorDurationInput ? visitorDurationInput.value.trim() : '2026-2032';
 
-    if (!qrData.trim()) qrData = inst.website || 'https://kkhmstorage.github.io/markaz-wafy-college/';
+        qrData = `COORDINATION OF ISLAMIC COLLEGES (CIC)\n` +
+                 `INSTITUTION: ${instName}\n` +
+                 `${affiliation}\n` +
+                 `WEBSITE: ${website}\n` +
+                 `HELPLINE: ${helpline}\n` +
+                 `------------------------------------\n` +
+                 `PASS TYPE: VISITORS' IDENTITY CARD\n` +
+                 `STUDENT: ${studentName}\n` +
+                 `ADMISSION NO: ${admNo}\n` +
+                 `DURATION: ${duration}\n` +
+                 `ADDRESS: ${addr1}, ${addr2}\n` +
+                 `CONTACT: ${contact}\n` +
+                 `AUTHORIZED RELATIVES: 4 MEMBERS\n` +
+                 `VERIFICATION: OFFICIAL & VALIDATED`;
+    } else {
+        const personName = personNameInput ? personNameInput.value.trim() : 'Student Name';
+        const personId = personIdInput ? personIdInput.value.trim() : '001';
+        const role = personRoleInput ? personRoleInput.value.trim() : 'Wafiyya Degree';
+        const blood = personBloodInput ? personBloodInput.value.trim() : 'O+Ve';
+        const guardian = personGuardianInput ? personGuardianInput.value.trim() : '';
+        const phone = personPhoneInput ? personPhoneInput.value.trim() : '';
+        const validity = personValidityInput ? personValidityInput.value.trim() : '2026-2032';
+
+        qrData = `COORDINATION OF ISLAMIC COLLEGES (CIC)\n` +
+                 `INSTITUTION: ${instName}\n` +
+                 `${affiliation}\n` +
+                 `WEBSITE: ${website}\n` +
+                 `HELPLINE: ${helpline}\n` +
+                 `------------------------------------\n` +
+                 `CARD TYPE: ${state.currentCardType.toUpperCase()} IDENTITY CARD\n` +
+                 `NAME: ${personName}\n` +
+                 `${state.currentCardType === 'student' ? 'ADMISSION NO' : 'STAFF ID'}: ${personId}\n` +
+                 `COURSE / ROLE: ${role}\n` +
+                 `BLOOD GROUP: ${blood}\n` +
+                 (guardian ? `GUARDIAN: ${guardian}\n` : '') +
+                 `PHONE: ${phone}\n` +
+                 `VALIDITY: ${validity}\n` +
+                 `STATUS: OFFICIAL CAMPUS IDENTITY CARD`;
+    }
 
     try {
         new QRCode(qrContainer, {
@@ -756,6 +825,64 @@ function wrapText(text, maxWidth) {
     return lines;
 }
 
+function formatDate(dateStr) {
+    if (!dateStr) return '';
+    try {
+        const parts = dateStr.split('-');
+        if (parts.length === 3) {
+            return `${parts[2]}/${parts[1]}/${parts[0]}`;
+        }
+        return dateStr;
+    } catch (e) {
+        return dateStr;
+    }
+}
+
+function drawCollegeLogoBadge(x, y, size) {
+    ctx.save();
+    // Soft rounded square badge with crisp white background
+    roundRect(x, y, size, size, 14);
+    ctx.fillStyle = '#ffffff';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    if (state.logoImage && state.logoImage.complete && state.logoImage.naturalWidth !== 0) {
+        // Clip inside badge with 5px padding
+        ctx.save();
+        roundRect(x + 5, y + 5, size - 10, size - 10, 10);
+        ctx.clip();
+        ctx.drawImage(state.logoImage, x + 5, y + 5, size - 10, size - 10);
+        ctx.restore();
+    } else {
+        // High quality fallback institutional emblem
+        ctx.fillStyle = '#173f8a';
+        ctx.font = 'bold 28px Inter, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('🏛️', x + size / 2, y + size / 2 + 10);
+    }
+    ctx.restore();
+}
+
+function drawSimulatedBarcode(centerX, y, width, height) {
+    const startX = centerX - width / 2;
+    ctx.save();
+    ctx.fillStyle = '#1e293b';
+    const pattern = [2, 1, 3, 1, 1, 2, 4, 1, 2, 1, 3, 2, 1, 4, 1, 2, 1, 3, 1, 2, 4, 1, 1, 2, 3, 1, 2, 1, 4, 2, 1, 3, 2, 1, 1];
+    let curX = startX;
+    const barScale = width / 65;
+    for (let i = 0; i < pattern.length; i++) {
+        const barW = Math.max(1, pattern[i] * barScale * 0.7);
+        if (i % 2 === 0) {
+            ctx.fillRect(curX, y, barW, height);
+        }
+        curX += barW + (barScale * 0.6);
+        if (curX > startX + width) break;
+    }
+    ctx.restore();
+}
+
 function getCardTypeLabel() {
     switch(state.currentCardType) {
         case 'student': return 'STUDENT IDENTITY CARD';
@@ -776,19 +903,18 @@ function getCardTypeBadgeColor() {
 
 
 // ═══════════════════════════════════════════════
-//  DRAW VISITOR FRONT SIDE (EXACT MATCH TO REAL CARD)
+//  DRAW VISITOR FRONT SIDE (RICH & BALANCED LAYOUT)
 // ═══════════════════════════════════════════════
 
 function drawVisitorFrontSide() {
     const W = canvas.width;
     const H = canvas.height;
-    const themeColor = themeColorInput.value || '#173f8a';
+    const themeColor = (themeColorInput && themeColorInput.value) || '#173f8a';
 
     // Clear
     ctx.clearRect(0, 0, W, H);
 
     ctx.save();
-    // Clip whole canvas to smooth rounded card corners
     roundRect(0, 0, W, H, 28);
     ctx.clip();
 
@@ -796,66 +922,79 @@ function drawVisitorFrontSide() {
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, W, H);
 
-    // ── Deep Royal Blue Header Banner ──
-    const headerH = 175;
+    // ── Header Banner (Royal Blue / Theme Color) ──
+    const headerH = 185;
     ctx.fillStyle = themeColor;
     ctx.fillRect(0, 0, W, headerH);
 
-    // ── Arabic College Title ──
+    // ── Institutional Logo (Prominent Badge at Top-Left) ──
+    drawCollegeLogoBadge(26, 24, 68);
+
+    // ── Header Titles ──
+    const textCenterX = W / 2 + 15;
+
+    // 1. Arabic Title
     ctx.textAlign = 'center';
     ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 22px "Amiri", "Noto Sans Arabic", "Traditional Arabic", sans-serif';
+    ctx.font = 'bold 20px "Amiri", "Noto Sans Arabic", "Traditional Arabic", sans-serif';
     const arabicTitle = (instArabicNameInput && instArabicNameInput.value) || 
         INSTITUTIONS[state.currentInstitution].arabicName || 
         'كلية الغيث للآداب والعلوم الإسلامية - للبنات';
-    ctx.fillText(arabicTitle, W / 2, 45);
+    ctx.fillText(arabicTitle, textCenterX, 38);
 
-    // ── English College Name (Golden Yellow font as on real card) ──
+    // 2. English College Name (Golden Yellow font as on authentic card)
     const instName = (instNameInput && instNameInput.value) || INSTITUTIONS[state.currentInstitution].name;
-    ctx.font = '900 22px "Inter", sans-serif';
-    ctx.fillStyle = '#ffd200'; // Bright Golden Yellow
-    ctx.fillText(instName.toUpperCase(), W / 2, 82);
+    ctx.font = '900 21px "Inter", sans-serif';
+    ctx.fillStyle = '#ffd200';
+    ctx.fillText(instName.toUpperCase(), textCenterX, 72);
 
-    // ── College Address & Phone (White / Light Slate) ──
-    ctx.font = '600 13px "Inter", sans-serif';
-    ctx.fillStyle = '#e2e8f0';
+    // 3. Affiliation Line (Directly below Institution Address)
+    const affiliation = (instAffiliationInput && instAffiliationInput.value) || 
+        (INSTITUTIONS[state.currentInstitution] && INSTITUTIONS[state.currentInstitution].affiliation) || 
+        'Affiliated to Coordination of Islamic Colleges';
+    ctx.font = '700 12px "Inter", sans-serif';
+    ctx.fillStyle = '#e0f2fe';
+    ctx.fillText(affiliation, textCenterX, 100);
+
+    // 4. College Address & Phone
+    ctx.font = '600 12px "Inter", sans-serif';
+    ctx.fillStyle = '#cbd5e1';
     const addr = (instAddressInput && instAddressInput.value) || INSTITUTIONS[state.currentInstitution].address;
     const phone = (instPhoneInput && instPhoneInput.value) || INSTITUTIONS[state.currentInstitution].phone;
-    ctx.fillText(addr, W / 2, 118);
-    ctx.fillText(phone.startsWith('Ph:') ? phone : ('Ph: ' + phone), W / 2, 140);
+    ctx.fillText(addr + (phone ? ' | Ph: ' + phone : ''), textCenterX, 124);
 
     // ── Attached Pill Badge: VISITORS' IDENTITY CARD ──
-    const pillW = 295;
-    const pillH = 40;
+    const pillW = 300;
+    const pillH = 38;
     const pillX = (W - pillW) / 2;
-    const pillY = 155; // Overlaps bottom edge of blue header
-    const pillRadius = 20;
+    const pillY = 166;
+    const pillRadius = 19;
 
     roundRect(pillX, pillY, pillW, pillH, pillRadius);
-    ctx.fillStyle = '#0c2452'; // Deep Dark Navy Pill
+    ctx.fillStyle = '#0c2452';
     ctx.fill();
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
-    ctx.lineWidth = 1;
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+    ctx.lineWidth = 1.2;
     ctx.stroke();
 
-    ctx.font = '800 15px "Inter", sans-serif';
+    ctx.font = '800 14px "Inter", sans-serif';
     ctx.fillStyle = '#ffffff';
     ctx.textAlign = 'center';
-    ctx.fillText("VISITORS' IDENTITY CARD", W / 2, pillY + 26);
+    ctx.fillText("VISITORS' IDENTITY CARD", W / 2, pillY + 24);
 
-    // ── Student Photo (Rounded Rectangle) ──
-    const photoW = 220;
-    const photoH = 260;
+    // ── Student Photo (Slightly Curved Square - NOT Circle!) ──
+    const photoW = 210;
+    const photoH = 250;
     const photoX = (W - photoW) / 2;
     const photoY = 225;
-    const photoRadius = 22;
+    const photoRadius = 16; // Slightly curved square
 
-    // Green photo backdrop (typical institutional studio photo backdrop)
+    // Studio backdrop
     roundRect(photoX, photoY, photoW, photoH, photoRadius);
     ctx.fillStyle = '#3f7856';
     ctx.fill();
 
-    // Clip photo inside rounded rect
+    // Clip photo inside curved square
     ctx.save();
     roundRect(photoX, photoY, photoW, photoH, photoRadius);
     ctx.clip();
@@ -884,64 +1023,193 @@ function drawVisitorFrontSide() {
 
     // Outer border for photo
     roundRect(photoX, photoY, photoW, photoH, photoRadius);
+    ctx.strokeStyle = themeColor;
+    ctx.lineWidth = 3;
+    ctx.stroke();
+
+    roundRect(photoX - 3, photoY - 3, photoW + 6, photoH + 6, photoRadius + 2);
     ctx.strokeStyle = '#cbd5e1';
-    ctx.lineWidth = 1.5;
+    ctx.lineWidth = 1;
     ctx.stroke();
 
     // ── Student Name (Centered, Navy Blue, Bold, Malayalam Safe) ──
     const studentName = (visitorStudentNameInput && visitorStudentNameInput.value) || 'AFRIN FATHIMA';
     const dispStudentName = formatDisplayName(studentName);
-    ctx.font = '900 30px "Noto Sans Malayalam", "Inter", sans-serif';
+    ctx.font = '900 28px "Noto Sans Malayalam", "Inter", sans-serif';
     if (ctx.measureText(dispStudentName).width > W - 120) {
-        ctx.font = '900 24px "Noto Sans Malayalam", "Inter", sans-serif';
+        ctx.font = '900 22px "Noto Sans Malayalam", "Inter", sans-serif';
     }
     ctx.fillStyle = '#1e3a8a';
     ctx.textAlign = 'center';
-    ctx.fillText(dispStudentName, W / 2, 535);
+    ctx.fillText(dispStudentName, W / 2, 512);
 
-    // ── Student Details (Left-aligned table block) ──
-    const detailStartX = 85;
-    let detailY = 592;
-    const lineSpacing = 38;
+    // ── Course / Batch Pill Subtitle ──
+    const durationVal = (visitorDurationInput && visitorDurationInput.value) || state.currentBatch || '2026-2032';
+    const subPillW = 200;
+    const subPillH = 26;
+    const subPillX = (W - subPillW) / 2;
+    const subPillY = 528;
+    roundRect(subPillX, subPillY, subPillW, subPillH, 13);
+    ctx.fillStyle = '#eff6ff';
+    ctx.fill();
+    ctx.strokeStyle = '#bfdbfe';
+    ctx.lineWidth = 1;
+    ctx.stroke();
 
+    ctx.font = '700 12px "Inter", sans-serif';
+    ctx.fillStyle = '#1d4ed8';
+    ctx.textAlign = 'center';
+    ctx.fillText(`BATCH: ${durationVal}`, W / 2, subPillY + 18);
+
+    // ── Structured Details Card (Filling y = 568 to 812) ──
+    const cardX = 45;
+    const cardY = 568;
+    const cardW = 560;
+    const cardH = 244;
+    const cardRadius = 14;
+
+    roundRect(cardX, cardY, cardW, cardH, cardRadius);
+    ctx.fillStyle = '#f8fafc';
+    ctx.fill();
+    ctx.strokeStyle = '#e2e8f0';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    const detailStartX = 75;
+    let detailY = 604;
+    const lineSpacing = 39;
     ctx.textAlign = 'left';
 
-    // 1. Admission Number (highlighted in red)
+    // 1. Admission Number (highlighted in red) & Blood Group
     const admNo = (visitorStudentIdInput && visitorStudentIdInput.value) || '747';
-    ctx.font = '700 20px "Inter", sans-serif';
-    ctx.fillStyle = '#1f2937';
-    ctx.fillText('Admission Number : ', detailStartX, detailY);
-    const admLabelW = ctx.measureText('Admission Number : ').width;
+    ctx.font = '700 17px "Inter", sans-serif';
+    ctx.fillStyle = '#475569';
+    ctx.fillText('Admission No : ', detailStartX, detailY);
+    const admLabelW = ctx.measureText('Admission No : ').width;
     ctx.font = '900 22px "Inter", sans-serif';
-    ctx.fillStyle = '#b91c1c'; // Red highlight as in the physical card
+    ctx.fillStyle = '#b91c1c';
     ctx.fillText(admNo, detailStartX + admLabelW, detailY);
+
+    // Blood Group on right
+    ctx.font = '700 16px "Inter", sans-serif';
+    ctx.fillStyle = '#475569';
+    ctx.fillText('Blood Group : ', 380, detailY);
+    ctx.font = '900 19px "Inter", sans-serif';
+    ctx.fillStyle = '#b91c1c';
+    const bGroup = (personBloodInput && personBloodInput.value) || 'O+Ve';
+    ctx.fillText(bGroup, 495, detailY);
 
     // 2. Address Line 1
     detailY += lineSpacing;
     const addr1 = (visitorStudentAddr1Input && visitorStudentAddr1Input.value) || 'KODAKKATTU H, NERIAMANGALAM';
-    ctx.font = '700 19px "Inter", sans-serif';
-    ctx.fillStyle = '#1f2937';
-    ctx.fillText(addr1.toUpperCase(), detailStartX, detailY);
+    ctx.font = '700 16px "Inter", sans-serif';
+    ctx.fillStyle = '#475569';
+    ctx.fillText('Address : ', detailStartX, detailY);
+    const addrLabelW = ctx.measureText('Address : ').width;
+    ctx.font = '700 16px "Inter", sans-serif';
+    ctx.fillStyle = '#0f172a';
+    ctx.fillText(addr1.toUpperCase(), detailStartX + addrLabelW, detailY);
 
-    // 3. Address Line 2
-    detailY += lineSpacing;
+    // 3. Address Line 2 (PO & Pincode)
+    detailY += 34;
     const addr2 = (visitorStudentAddr2Input && visitorStudentAddr2Input.value) || 'PO, ERANAKULAM 686693';
-    ctx.fillText(addr2.toUpperCase(), detailStartX, detailY);
+    ctx.font = '700 16px "Inter", sans-serif';
+    ctx.fillStyle = '#0f172a';
+    ctx.fillText(addr2.toUpperCase(), detailStartX + addrLabelW, detailY);
 
-    // 4. Contact No
+    // 4. Contact Numbers
     detailY += lineSpacing;
     const contact = (visitorStudentContactInput && visitorStudentContactInput.value) || '9562937331, 7561085134';
-    ctx.fillText('Contact No: ' + contact, detailStartX, detailY);
+    ctx.font = '700 16px "Inter", sans-serif';
+    ctx.fillStyle = '#475569';
+    ctx.fillText('Contact No : ', detailStartX, detailY);
+    const contactLabelW = ctx.measureText('Contact No : ').width;
+    ctx.font = '700 16px "Inter", sans-serif';
+    ctx.fillStyle = '#0f172a';
+    ctx.fillText(contact, detailStartX + contactLabelW, detailY);
 
-    // 5. Duration
+    // 5. Course Duration
     detailY += lineSpacing;
-    const duration = (visitorDurationInput && visitorDurationInput.value) || '2026-2032';
-    ctx.fillText('Duration   : ' + duration, detailStartX, detailY);
+    ctx.font = '700 16px "Inter", sans-serif';
+    ctx.fillStyle = '#475569';
+    ctx.fillText('Duration : ', detailStartX, detailY);
+    const durLabelW = ctx.measureText('Duration : ').width;
+    ctx.font = '700 16px "Inter", sans-serif';
+    ctx.fillStyle = '#1e3a8a';
+    ctx.fillText(`${durationVal} (6 Years Academic Course)`, detailStartX + durLabelW, detailY);
+
+    // 6. Security Note Footnote
+    ctx.font = 'italic 11px "Inter", sans-serif';
+    ctx.fillStyle = '#64748b';
+    ctx.textAlign = 'center';
+    ctx.fillText('* This identity pass authorizes campus entry for family members verified on reverse side.', W / 2, cardY + cardH - 12);
+
+    // ── Verification & Signatures Strip (Filling y = 824 to 936) ──
+    // Left: Student Signature
+    ctx.beginPath();
+    ctx.moveTo(75, 880);
+    ctx.lineTo(215, 880);
+    ctx.strokeStyle = '#cbd5e1';
+    ctx.lineWidth = 1.2;
+    ctx.stroke();
+
+    ctx.font = '600 12px "Inter", sans-serif';
+    ctx.fillStyle = '#64748b';
+    ctx.textAlign = 'center';
+    ctx.fillText("Student Signature", 145, 902);
+
+    // Center: Simulated Barcode & Verification Badge
+    drawSimulatedBarcode(325, 846, 120, 28);
+    ctx.font = 'bold 10px monospace';
+    ctx.fillStyle = '#475569';
+    ctx.textAlign = 'center';
+    ctx.fillText("* CIC-VERIFIED-ID *", 325, 892);
+
+    ctx.font = '700 9px "Inter", sans-serif';
+    ctx.fillStyle = '#059669';
+    ctx.fillText("OFFICIAL VISITOR IDENTITY", 325, 908);
+
+    // Right: Principal / Authority Signature & Seal
+    ctx.beginPath();
+    ctx.moveTo(435, 880);
+    ctx.lineTo(575, 880);
+    ctx.strokeStyle = '#cbd5e1';
+    ctx.lineWidth = 1.2;
+    ctx.stroke();
+
+    ctx.font = '600 12px "Inter", sans-serif';
+    ctx.fillStyle = '#64748b';
+    ctx.textAlign = 'center';
+    ctx.fillText("Principal / Authority", 505, 902);
+
+    // Authority Seal Stamp Badge
+    ctx.beginPath();
+    ctx.arc(505, 852, 18, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(30, 58, 138, 0.4)';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    ctx.font = '800 9px "Inter", sans-serif';
+    ctx.fillStyle = '#1e3a8a';
+    ctx.fillText("SEAL", 505, 856);
+
+    // ── Solid Theme Color Bottom Footer Bar (y = 948 to 1000) ──
+    ctx.fillStyle = themeColor;
+    ctx.fillRect(0, H - 52, W, 52);
+
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '700 12px "Inter", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(affiliation, W / 2, H - 30);
+
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+    ctx.font = '500 11px "Inter", sans-serif';
+    const webText = (instWebsiteInput && instWebsiteInput.value) || INSTITUTIONS[state.currentInstitution].website;
+    ctx.fillText(`${webText} | Helpline: ${phone}`, W / 2, H - 12);
 
     // Subtle outer card border
     roundRect(0, 0, W, H, 28);
     ctx.strokeStyle = '#e2e8f0';
-    ctx.lineWidth = 1;
+    ctx.lineWidth = 1.5;
     ctx.stroke();
 
     ctx.restore();
@@ -949,13 +1217,13 @@ function drawVisitorFrontSide() {
 
 
 // ═══════════════════════════════════════════════
-//  DRAW VISITOR BACK SIDE (AUTHORIZED FAMILY GRID)
+//  DRAW VISITOR BACK SIDE (4 FAMILY MEMBERS GRID)
 // ═══════════════════════════════════════════════
 
 function drawVisitorBackSide() {
     const W = canvas.width;
     const H = canvas.height;
-    const themeColor = themeColorInput.value || '#173f8a';
+    const themeColor = (themeColorInput && themeColorInput.value) || '#173f8a';
 
     // Clear
     ctx.clearRect(0, 0, W, H);
@@ -964,28 +1232,43 @@ function drawVisitorBackSide() {
     roundRect(0, 0, W, H, 28);
     ctx.clip();
 
-    // ── Solid Royal Blue Background ──
+    // ── Solid Theme Color Background ──
     ctx.fillStyle = themeColor;
     ctx.fillRect(0, 0, W, H);
 
-    // ── Top Title: AUTHORIZED FAMILY ──
-    ctx.font = '900 28px "Inter", sans-serif';
-    ctx.fillStyle = '#ffffff';
-    ctx.textAlign = 'center';
-    ctx.letterSpacing = '1.5px';
-    ctx.fillText('AUTHORIZED FAMILY', W / 2, 75);
+    // ── Top Header ──
+    const affiliation = (instAffiliationInput && instAffiliationInput.value) || 
+        (INSTITUTIONS[state.currentInstitution] && INSTITUTIONS[state.currentInstitution].affiliation) || 
+        'Affiliated to Coordination of Islamic Colleges';
 
-    // ── Grid of Family Members (2 columns x 2 rows) ──
+    ctx.font = '700 13px "Inter", sans-serif';
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+    ctx.textAlign = 'center';
+    ctx.fillText('COORDINATION OF ISLAMIC COLLEGES (CIC)', W / 2, 48);
+
+    ctx.font = '900 24px "Inter", sans-serif';
+    ctx.fillStyle = '#ffffff';
+    ctx.letterSpacing = '1.2px';
+    ctx.fillText('AUTHORIZED FAMILY MEMBERS', W / 2, 80);
+
+    // Header divider line
+    ctx.beginPath();
+    ctx.moveTo(60, 98);
+    ctx.lineTo(W - 60, 98);
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    // ── Grid of 4 Family Members (2 columns x 2 rows) ──
     const members = state.familyMembers || [];
     const colCenters = [185, 465];
-    const rowY = [125, 540];
-    const photoW = 200;
-    const photoH = 240;
-    const photoRadius = 22;
+    const rowY = [118, 462];
+    const photoW = 190;
+    const photoH = 215;
+    const photoRadius = 16; // Slightly curved square
 
     for (let i = 0; i < 4; i++) {
-        const member = members[i];
-        if (!member || !member.name) continue;
+        const member = members[i] || { name: 'AUTHORIZED MEMBER', relation: 'RELATION' };
 
         const col = i % 2;
         const row = Math.floor(i / 2);
@@ -993,12 +1276,12 @@ function drawVisitorBackSide() {
         const py = rowY[row];
         const px = cx - (photoW / 2);
 
-        // 1. Photo box with light cyan background (matches physical card)
+        // 1. Photo box with light cyan background
         roundRect(px, py, photoW, photoH, photoRadius);
         ctx.fillStyle = '#7dd3fc';
         ctx.fill();
 
-        // 2. Draw member photo
+        // 2. Draw member photo inside curved square
         ctx.save();
         roundRect(px, py, photoW, photoH, photoRadius);
         ctx.clip();
@@ -1024,36 +1307,98 @@ function drawVisitorBackSide() {
         }
         ctx.restore();
 
-        // 3. Photo border
+        // 3. Photo border (clean crisp border)
         roundRect(px, py, photoW, photoH, photoRadius);
         ctx.strokeStyle = '#bae6fd';
-        ctx.lineWidth = 1.5;
+        ctx.lineWidth = 2;
         ctx.stroke();
 
         // 4. Member Name (Bold White Uppercase)
-        ctx.font = '900 19px "Inter", sans-serif';
+        ctx.font = '900 18px "Inter", sans-serif';
         ctx.fillStyle = '#ffffff';
         ctx.textAlign = 'center';
-        ctx.fillText((member.name || '').toUpperCase(), cx, py + photoH + 32);
+        ctx.fillText((member.name || 'MEMBER').toUpperCase(), cx, py + photoH + 28);
 
-        // 5. Member Relation (White / Light Sky Uppercase)
-        ctx.font = '700 15px "Inter", sans-serif';
-        ctx.fillStyle = '#e0f2fe';
-        ctx.fillText((member.relation || '').toUpperCase(), cx, py + photoH + 55);
+        // 5. Member Relation Pill Badge
+        const relText = (member.relation || 'FAMILY').toUpperCase();
+        const relW = 120;
+        const relH = 24;
+        const relX = cx - (relW / 2);
+        const relY = py + photoH + 38;
+        roundRect(relX, relY, relW, relH, 12);
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.18)';
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        ctx.font = '800 12px "Inter", sans-serif';
+        ctx.fillStyle = '#f0f9ff';
+        ctx.fillText(relText, cx, relY + 16);
     }
+
+    // ── Security & Visiting Rules Box (Filling y = 785 to 935) ──
+    const ruleBoxX = 45;
+    const ruleBoxY = 785;
+    const ruleBoxW = 560;
+    const ruleBoxH = 150;
+    const ruleBoxRadius = 14;
+
+    roundRect(ruleBoxX, ruleBoxY, ruleBoxW, ruleBoxH, ruleBoxRadius);
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.25)';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.22)';
+    ctx.lineWidth = 1.2;
+    ctx.stroke();
+
+    ctx.textAlign = 'center';
+    ctx.font = '800 13px "Inter", sans-serif';
+    ctx.fillStyle = '#ffd200'; // Golden title
+    ctx.fillText('VISITING RULES & REGULATIONS', W / 2, ruleBoxY + 26);
+
+    ctx.textAlign = 'left';
+    ctx.font = '600 11.5px "Inter", sans-serif';
+    ctx.fillStyle = '#f1f5f9';
+    const rules = [
+        '1. Only the 4 authorized family members pictured above are permitted to visit.',
+        '2. Visitors must present this original ID card at the security gate for entry.',
+        '3. Visiting hours must be strictly observed as per college administration schedule.',
+        '4. In case of emergency, contact the college office: 0494 2608283, 8590658550.'
+    ];
+
+    let rY = ruleBoxY + 52;
+    rules.forEach(rule => {
+        ctx.fillText(rule, ruleBoxX + 22, rY);
+        rY += 24;
+    });
+
+    // ── Bottom Footer Bar (y = 948 to 1000) ──
+    ctx.fillStyle = darkenColor(themeColor, 20);
+    ctx.fillRect(0, H - 52, W, 52);
+
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+    ctx.font = '700 11px "Inter", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(`${affiliation} • Security & Identity Management System`, W / 2, H - 24);
+
+    // Outer card border
+    roundRect(0, 0, W, H, 28);
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
 
     ctx.restore();
 }
 
 
 // ═══════════════════════════════════════════════
-//  DRAW STUDENT / STAFF FRONT SIDE
+//  DRAW STUDENT / STAFF FRONT SIDE (FILLED OUT)
 // ═══════════════════════════════════════════════
 
 function drawFrontSide() {
     const W = canvas.width;
     const H = canvas.height;
-    const themeColor = themeColorInput.value || '#173f8a';
+    const themeColor = (themeColorInput && themeColorInput.value) || '#173f8a';
 
     // Clear
     ctx.clearRect(0, 0, W, H);
@@ -1066,10 +1411,15 @@ function drawFrontSide() {
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, W, H);
 
-    // ── Top Header Banner (Clean Solid Blue/Theme Color - NO YELLOW) ──
-    const headerH = 175;
+    // ── Top Header Banner ──
+    const headerH = 185;
     ctx.fillStyle = themeColor;
     ctx.fillRect(0, 0, W, headerH);
+
+    // ── College Logo Badge at Top-Left ──
+    drawCollegeLogoBadge(26, 24, 68);
+
+    const textCenterX = W / 2 + 15;
 
     // ── Arabic College Title ──
     const arabicTitle = (instArabicNameInput && instArabicNameInput.value) || 
@@ -1077,38 +1427,46 @@ function drawFrontSide() {
     if (arabicTitle) {
         ctx.textAlign = 'center';
         ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 21px "Amiri", "Noto Sans Arabic", sans-serif';
-        ctx.fillText(arabicTitle, W / 2, 45);
+        ctx.font = 'bold 20px "Amiri", "Noto Sans Arabic", sans-serif';
+        ctx.fillText(arabicTitle, textCenterX, 38);
     }
 
-    // ── Institution Name (Clean Crisp White - NO YELLOW) ──
+    // ── Institution Name ──
     ctx.fillStyle = '#ffffff';
     ctx.textAlign = 'center';
     const instName = (instNameInput && instNameInput.value) || INSTITUTIONS[state.currentInstitution].name;
-    ctx.font = 'bold 23px Inter, sans-serif';
-    ctx.fillText(instName.toUpperCase(), W / 2, arabicTitle ? 80 : 65);
+    ctx.font = '900 21px Inter, sans-serif';
+    ctx.fillText(instName.toUpperCase(), textCenterX, 72);
 
-    // ── Address & Contact in Header ──
+    // ── Affiliation Line (Directly Below Address) ──
+    const affiliation = (instAffiliationInput && instAffiliationInput.value) || 
+        (INSTITUTIONS[state.currentInstitution] && INSTITUTIONS[state.currentInstitution].affiliation) || 
+        'Affiliated to Coordination of Islamic Colleges';
+    ctx.font = '700 12px Inter, sans-serif';
+    ctx.fillStyle = '#e0f2fe';
+    ctx.fillText(affiliation, textCenterX, 100);
+
+    // ── Address & Phone ──
     const addr = (instAddressInput && instAddressInput.value) || INSTITUTIONS[state.currentInstitution].address;
     const phone = (instPhoneInput && instPhoneInput.value) || INSTITUTIONS[state.currentInstitution].phone;
-    ctx.font = '500 13px Inter, sans-serif';
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-    ctx.fillText(addr + (phone ? ' | Ph: ' + phone : ''), W / 2, arabicTitle ? 116 : 100);
+    ctx.font = '600 12px Inter, sans-serif';
+    ctx.fillStyle = '#cbd5e1';
+    ctx.fillText(addr + (phone ? ' | Ph: ' + phone : ''), textCenterX, 124);
 
     // ── Card Type Pill Badge ──
     const badgeText = getCardTypeLabel();
     const badge = getCardTypeBadgeColor();
-    const pillW = 280;
+    const pillW = 290;
     const pillH = 38;
     const pillX = (W - pillW) / 2;
-    const pillY = headerH - 19;
+    const pillY = 166;
     const pillRadius = 19;
 
     roundRect(pillX, pillY, pillW, pillH, pillRadius);
     ctx.fillStyle = badge.bg;
     ctx.fill();
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
-    ctx.lineWidth = 1;
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+    ctx.lineWidth = 1.2;
     ctx.stroke();
 
     ctx.font = '800 14px Inter, sans-serif';
@@ -1116,138 +1474,244 @@ function drawFrontSide() {
     ctx.textAlign = 'center';
     ctx.fillText(badgeText, W / 2, pillY + 24);
 
-    // ── Photo Circle (Clean Theme Color Ring - NO YELLOW) ──
-    const centerX = W / 2;
-    const centerY = 330;
-    const radius = 105;
+    // ── Photo (Slightly Curved Square - NOT Circle!) ──
+    const photoW = 210;
+    const photoH = 250;
+    const photoX = (W - photoW) / 2;
+    const photoY = 225;
+    const photoRadius = 16; // Slightly curved square
 
-    ctx.beginPath();
-    ctx.arc(centerX, centerY, radius + 4, 0, Math.PI * 2);
-    ctx.fillStyle = '#ffffff';
+    roundRect(photoX, photoY, photoW, photoH, photoRadius);
+    ctx.fillStyle = '#f1f5f9';
     ctx.fill();
-    ctx.lineWidth = 3;
-    ctx.strokeStyle = themeColor;
-    ctx.stroke();
 
     ctx.save();
-    ctx.beginPath();
-    ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
-    ctx.closePath();
+    roundRect(photoX, photoY, photoW, photoH, photoRadius);
     ctx.clip();
 
     if (state.userPhoto) {
         const zoom = state.photoZoom / 100;
         const aspect = state.userPhoto.width / state.userPhoto.height;
         let drawW, drawH;
-        if (aspect > 1) {
-            drawH = radius * 2 * zoom;
+        if (aspect > (photoW / photoH)) {
+            drawH = photoH * zoom;
             drawW = drawH * aspect;
         } else {
-            drawW = radius * 2 * zoom;
+            drawW = photoW * zoom;
             drawH = drawW / aspect;
         }
-        const dx = centerX - drawW / 2 + state.photoOffsetX;
-        const dy = centerY - drawH / 2 + state.photoOffsetY;
+        const dx = photoX + (photoW - drawW) / 2 + state.photoOffsetX;
+        const dy = photoY + (photoH - drawH) / 2 + state.photoOffsetY;
         ctx.drawImage(state.userPhoto, dx, dy, drawW, drawH);
     } else {
-        ctx.fillStyle = '#f1f5f9';
-        ctx.fillRect(centerX - radius, centerY - radius, radius * 2, radius * 2);
-        ctx.fillStyle = '#94a3b8';
+        ctx.fillStyle = '#cbd5e1';
         ctx.font = '55px Inter';
         ctx.textAlign = 'center';
-        ctx.fillText('📷', centerX, centerY + 18);
+        ctx.fillText('📷', W / 2, photoY + photoH / 2 + 18);
     }
     ctx.restore();
 
-    // ── Details Section ──
-    drawPersonFrontDetails(centerY + radius + 40);
+    // Outer photo border
+    roundRect(photoX, photoY, photoW, photoH, photoRadius);
+    ctx.strokeStyle = themeColor;
+    ctx.lineWidth = 3;
+    ctx.stroke();
 
-    // ── Bottom Footer (Clean Solid Theme Color - NO YELLOW) ──
-    ctx.fillStyle = themeColor;
-    ctx.fillRect(0, H - 48, W, 48);
-
-    ctx.fillStyle = 'rgba(255,255,255,0.95)';
-    ctx.font = '500 13px Inter, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText(instWebsiteInput.value || '', W / 2, H - 26);
-
-    // Subtle outer card border
-    roundRect(0, 0, W, H, 28);
-    ctx.strokeStyle = '#e2e8f0';
+    roundRect(photoX - 3, photoY - 3, photoW + 6, photoH + 6, photoRadius + 2);
+    ctx.strokeStyle = '#cbd5e1';
     ctx.lineWidth = 1;
     ctx.stroke();
 
-    ctx.restore();
-}
-
-function drawPersonFrontDetails(startY) {
-    const W = canvas.width;
-    const themeColor = themeColorInput.value || '#173f8a';
-
-    // Name (Malayalam & Unicode Safe)
+    // ── Person Name ──
     ctx.fillStyle = '#111827';
     ctx.textAlign = 'center';
     const name = (personNameInput && personNameInput.value) || 'Student Name';
     const dispName = formatDisplayName(name);
-    ctx.font = '900 30px "Noto Sans Malayalam", "Inter", sans-serif';
+    ctx.font = '900 28px "Noto Sans Malayalam", "Inter", sans-serif';
     if (ctx.measureText(dispName).width > W - 120) {
-        ctx.font = '900 23px "Noto Sans Malayalam", "Inter", sans-serif';
+        ctx.font = '900 22px "Noto Sans Malayalam", "Inter", sans-serif';
     }
-    ctx.fillText(dispName, W / 2, startY);
+    ctx.fillText(dispName, W / 2, 512);
 
-    // Role / Class
-    ctx.fillStyle = themeColor;
-    ctx.font = '700 18px Inter, sans-serif';
-    ctx.fillText(personRoleInput.value || '', W / 2, startY + 30);
+    // ── Role / Course Subtitle Pill ──
+    const roleVal = (personRoleInput && personRoleInput.value) || 'Wafiyya Degree';
+    const subPillW = 220;
+    const subPillH = 26;
+    const subPillX = (W - subPillW) / 2;
+    const subPillY = 528;
+    roundRect(subPillX, subPillY, subPillW, subPillH, 13);
+    ctx.fillStyle = '#eff6ff';
+    ctx.fill();
+    ctx.strokeStyle = '#bfdbfe';
+    ctx.lineWidth = 1;
+    ctx.stroke();
 
-    // Divider
-    ctx.beginPath();
-    ctx.moveTo(110, startY + 48);
-    ctx.lineTo(W - 110, startY + 48);
-    ctx.strokeStyle = '#e5e7eb';
+    ctx.font = '700 12px "Inter", sans-serif';
+    ctx.fillStyle = '#1d4ed8';
+    ctx.textAlign = 'center';
+    ctx.fillText(roleVal.toUpperCase(), W / 2, subPillY + 18);
+
+    // ── Structured Details Card (Filling y = 568 to 812) ──
+    const cardX = 45;
+    const cardY = 568;
+    const cardW = 560;
+    const cardH = 244;
+    const cardRadius = 14;
+
+    roundRect(cardX, cardY, cardW, cardH, cardRadius);
+    ctx.fillStyle = '#f8fafc';
+    ctx.fill();
+    ctx.strokeStyle = '#e2e8f0';
     ctx.lineWidth = 1.5;
     ctx.stroke();
 
-    // Details table
+    const detailStartX = 75;
+    let detailY = 604;
+    const lineSpacing = 39;
     ctx.textAlign = 'left';
-    const labelX = 110;
-    const colonX = 280;
-    const valueX = 300;
-    let detailY = startY + 84;
-    const spacing = 36;
 
-    const details = [];
-    
-    if (state.currentCardType === 'student') {
-        details.push({ label: 'Admission No', value: personIdInput.value, color: '#1f2937' });
-        details.push({ label: 'Blood Group', value: personBloodInput.value, color: '#dc2626' });
-        if (personDobInput.value) {
-            details.push({ label: 'Date of Birth', value: formatDate(personDobInput.value), color: '#1f2937' });
-        }
-        details.push({ label: 'Phone', value: personPhoneInput.value, color: '#1f2937' });
-    } else {
-        details.push({ label: 'Staff ID', value: personIdInput.value, color: '#1f2937' });
-        if (staffDeptInput.value) {
-            details.push({ label: 'Department', value: staffDeptInput.value, color: '#1f2937' });
-        }
-        details.push({ label: 'Blood Group', value: personBloodInput.value, color: '#dc2626' });
-        details.push({ label: 'Phone', value: personPhoneInput.value, color: '#1f2937' });
-        if (staffJoinDateInput.value) {
-            details.push({ label: 'Joined', value: formatDate(staffJoinDateInput.value), color: '#1f2937' });
-        }
-    }
+    const idNum = (personIdInput && personIdInput.value) || '001';
+    const bGroup = (personBloodInput && personBloodInput.value) || 'O+Ve';
+    const guardian = (personGuardianInput && personGuardianInput.value) || 'Guardian Name';
+    const phoneNum = (personPhoneInput && personPhoneInput.value) || 'Contact Phone';
+    const validity = (personValidityInput && personValidityInput.value) || state.currentBatch || '2026-2032';
 
-    details.forEach(d => {
-        if (!d.value) return;
-        ctx.font = '600 17px Inter, sans-serif';
-        ctx.fillStyle = '#6b7280';
-        ctx.fillText(d.label, labelX, detailY);
-        ctx.fillText(':', colonX, detailY);
-        ctx.font = '700 17px Inter, sans-serif';
-        ctx.fillStyle = d.color;
-        ctx.fillText(d.value, valueX, detailY);
-        detailY += spacing;
-    });
+    // 1. Admission No & Blood Group
+    ctx.font = '700 17px "Inter", sans-serif';
+    ctx.fillStyle = '#475569';
+    const idLabel = state.currentCardType === 'student' ? 'Admission No : ' : 'Staff ID : ';
+    ctx.fillText(idLabel, detailStartX, detailY);
+    const idLabelW = ctx.measureText(idLabel).width;
+    ctx.font = '900 22px "Inter", sans-serif';
+    ctx.fillStyle = '#b91c1c';
+    ctx.fillText(idNum, detailStartX + idLabelW, detailY);
+
+    ctx.font = '700 16px "Inter", sans-serif';
+    ctx.fillStyle = '#475569';
+    ctx.fillText('Blood Group : ', 380, detailY);
+    ctx.font = '900 19px "Inter", sans-serif';
+    ctx.fillStyle = '#b91c1c';
+    ctx.fillText(bGroup, 495, detailY);
+
+    // 2. Course / Dept
+    detailY += lineSpacing;
+    const courseLabel = state.currentCardType === 'student' ? 'Course / Class : ' : 'Department : ';
+    const courseVal = state.currentCardType === 'student' ? roleVal : ((staffDeptInput && staffDeptInput.value) || 'Department');
+    ctx.font = '700 16px "Inter", sans-serif';
+    ctx.fillStyle = '#475569';
+    ctx.fillText(courseLabel, detailStartX, detailY);
+    const cLabelW = ctx.measureText(courseLabel).width;
+    ctx.font = '700 16px "Inter", sans-serif';
+    ctx.fillStyle = '#0f172a';
+    ctx.fillText(courseVal, detailStartX + cLabelW, detailY);
+
+    // 3. Guardian / DOB
+    detailY += lineSpacing;
+    ctx.font = '700 16px "Inter", sans-serif';
+    ctx.fillStyle = '#475569';
+    const guardLabel = state.currentCardType === 'student' ? 'Guardian Name : ' : 'Designation : ';
+    const guardVal = state.currentCardType === 'student' ? guardian : roleVal;
+    ctx.fillText(guardLabel, detailStartX, detailY);
+    const gLabelW = ctx.measureText(guardLabel).width;
+    ctx.font = '700 16px "Inter", sans-serif';
+    ctx.fillStyle = '#0f172a';
+    ctx.fillText(guardVal, detailStartX + gLabelW, detailY);
+
+    // 4. Contact Phone
+    detailY += lineSpacing;
+    ctx.font = '700 16px "Inter", sans-serif';
+    ctx.fillStyle = '#475569';
+    ctx.fillText('Contact Phone : ', detailStartX, detailY);
+    const pLabelW = ctx.measureText('Contact Phone : ').width;
+    ctx.font = '700 16px "Inter", sans-serif';
+    ctx.fillStyle = '#0f172a';
+    ctx.fillText(phoneNum, detailStartX + pLabelW, detailY);
+
+    // 5. Validity
+    detailY += lineSpacing;
+    ctx.font = '700 16px "Inter", sans-serif';
+    ctx.fillStyle = '#475569';
+    ctx.fillText('Valid Upto : ', detailStartX, detailY);
+    const vLabelW = ctx.measureText('Valid Upto : ').width;
+    ctx.font = '700 16px "Inter", sans-serif';
+    ctx.fillStyle = '#1e3a8a';
+    ctx.fillText(`${validity} (Authorized Period)`, detailStartX + vLabelW, detailY);
+
+    // 6. Security Note Footnote
+    ctx.font = 'italic 11px "Inter", sans-serif';
+    ctx.fillStyle = '#64748b';
+    ctx.textAlign = 'center';
+    ctx.fillText('* Property of the college. Must be worn within campus at all times and shown upon demand.', W / 2, cardY + cardH - 12);
+
+    // ── Verification & Signatures Strip (Filling y = 824 to 936) ──
+    // Left: Holder Signature
+    ctx.beginPath();
+    ctx.moveTo(75, 880);
+    ctx.lineTo(215, 880);
+    ctx.strokeStyle = '#cbd5e1';
+    ctx.lineWidth = 1.2;
+    ctx.stroke();
+
+    ctx.font = '600 12px "Inter", sans-serif';
+    ctx.fillStyle = '#64748b';
+    ctx.textAlign = 'center';
+    ctx.fillText("Holder's Signature", 145, 902);
+
+    // Center: Simulated Barcode & Verification Badge
+    drawSimulatedBarcode(325, 846, 120, 28);
+    ctx.font = 'bold 10px monospace';
+    ctx.fillStyle = '#475569';
+    ctx.textAlign = 'center';
+    ctx.fillText("* CIC-VERIFIED-ID *", 325, 892);
+
+    ctx.font = '700 9px "Inter", sans-serif';
+    ctx.fillStyle = '#059669';
+    ctx.fillText("OFFICIAL CAMPUS IDENTITY", 325, 908);
+
+    // Right: Principal / Authority Signature & Seal
+    ctx.beginPath();
+    ctx.moveTo(435, 880);
+    ctx.lineTo(575, 880);
+    ctx.strokeStyle = '#cbd5e1';
+    ctx.lineWidth = 1.2;
+    ctx.stroke();
+
+    ctx.font = '600 12px "Inter", sans-serif';
+    ctx.fillStyle = '#64748b';
+    ctx.textAlign = 'center';
+    ctx.fillText("Principal / Authority", 505, 902);
+
+    // Authority Seal Stamp Badge
+    ctx.beginPath();
+    ctx.arc(505, 852, 18, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(30, 58, 138, 0.4)';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    ctx.font = '800 9px "Inter", sans-serif';
+    ctx.fillStyle = '#1e3a8a';
+    ctx.fillText("SEAL", 505, 856);
+
+    // ── Bottom Footer Bar (y = 948 to 1000) ──
+    ctx.fillStyle = themeColor;
+    ctx.fillRect(0, H - 52, W, 52);
+
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '700 12px "Inter", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(affiliation, W / 2, H - 30);
+
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+    ctx.font = '500 11px "Inter", sans-serif';
+    const webText = (instWebsiteInput && instWebsiteInput.value) || INSTITUTIONS[state.currentInstitution].website;
+    ctx.fillText(`${webText} | Helpline: ${phone}`, W / 2, H - 12);
+
+    // Subtle outer card border
+    roundRect(0, 0, W, H, 28);
+    ctx.strokeStyle = '#e2e8f0';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    ctx.restore();
 }
 
 
@@ -1557,17 +2021,30 @@ async function saveCurrentCardToBatch() {
         let cardIdNum = '';
         let roleOrDept = '';
         let phone = '';
+        let addr1 = '';
+        let addr2 = '';
+        let blood = '';
+        let guardian = '';
+        let validity = '';
 
         if (state.currentCardType === 'visitor') {
             cardName = (visitorStudentNameInput && visitorStudentNameInput.value) || 'AFRIN FATHIMA';
             cardIdNum = (visitorStudentIdInput && visitorStudentIdInput.value) || '747';
             roleOrDept = (visitorDurationInput && visitorDurationInput.value) || currentBatch;
             phone = (visitorStudentContactInput && visitorStudentContactInput.value) || '';
+            addr1 = (visitorStudentAddr1Input && visitorStudentAddr1Input.value) || '';
+            addr2 = (visitorStudentAddr2Input && visitorStudentAddr2Input.value) || '';
+            blood = (personBloodInput && personBloodInput.value) || 'O+Ve';
+            validity = roleOrDept;
         } else {
             cardName = (personNameInput && personNameInput.value) || 'Student Name';
             cardIdNum = (personIdInput && personIdInput.value) || '001';
             roleOrDept = (personRoleInput && personRoleInput.value) || '';
             phone = (personPhoneInput && personPhoneInput.value) || '';
+            blood = (personBloodInput && personBloodInput.value) || 'O+Ve';
+            guardian = (personGuardianInput && personGuardianInput.value) || '';
+            validity = (personValidityInput && personValidityInput.value) || currentBatch;
+            addr1 = (personAddressInput && personAddressInput.value) || '';
         }
 
         const cardRecord = {
@@ -1580,6 +2057,11 @@ async function saveCurrentCardToBatch() {
             idNumber: cardIdNum,
             roleOrDept: roleOrDept,
             phone: phone,
+            addr1: addr1,
+            addr2: addr2,
+            blood: blood,
+            guardian: guardian,
+            validity: validity,
             frontImg: frontDataUrl,
             backImg: backDataUrl,
             driveFrontUrl: null,
@@ -1589,12 +2071,185 @@ async function saveCurrentCardToBatch() {
         };
 
         saveCardToBatchDB(cardRecord);
-        showToast(`ബാച്ച് ${currentBatch}-ലേക്ക് "${cardRecord.name}" വിജയകരമായി സേവ് ചെയ്തു! ✓`, 'success');
+
+        // 1. Reset designer form so the card disappears from the main designer interface
+        resetDesignerForm();
+
+        // 2. Automatically switch to Recent Works tab and list all saved works downwards
+        switchControlTab('recent');
+
+        showToast(`"${cardRecord.name}" ബാച്ച് ${currentBatch}-ലേക്ക് സേവ് ചെയ്തു! ഫോം ക്ലിയർ ചെയ്തു, റീസെന്റ് വർക്കുകളിലേക്ക് മാറ്റി. ✓`, 'success');
         return cardRecord;
     } catch (err) {
         console.error('Save to batch error:', err);
         showToast('സേവ് ചെയ്യുന്നതിൽ തടസ്സം: ' + err.message, 'error');
         return null;
+    }
+}
+
+// ──── RESET DESIGNER FORM (CLEARS MAIN INTERFACE) ────
+function resetDesignerForm() {
+    // Clear visitor fields
+    if (visitorStudentNameInput) visitorStudentNameInput.value = '';
+    if (visitorStudentIdInput) visitorStudentIdInput.value = '';
+    if (visitorStudentAddr1Input) visitorStudentAddr1Input.value = '';
+    if (visitorStudentAddr2Input) visitorStudentAddr2Input.value = '';
+    if (visitorStudentContactInput) visitorStudentContactInput.value = '';
+
+    // Clear student / staff fields
+    if (personNameInput) personNameInput.value = '';
+    if (personIdInput) personIdInput.value = '';
+    if (personRoleInput) personRoleInput.value = '';
+    if (personBloodInput) personBloodInput.value = 'O+Ve';
+    if (personGuardianInput) personGuardianInput.value = '';
+    if (personPhoneInput) personPhoneInput.value = '';
+    if (personAddressInput) personAddressInput.value = '';
+
+    // Clear photo & drag
+    state.userPhoto = null;
+    state.photoOffsetX = 0;
+    state.photoOffsetY = 0;
+    state.photoZoom = 100;
+    if (photoZoomSlider) photoZoomSlider.value = 100;
+    if (zoomValueDisplay) zoomValueDisplay.textContent = '100%';
+
+    const photoLabel = document.getElementById('photoLabel');
+    if (photoLabel) {
+        photoLabel.innerHTML = '<i class="fas fa-portrait"></i><span>ഫോട്ടോ അപ്ലോഡ് ചെയ്യുക</span>';
+    }
+    if (photoControls) photoControls.classList.add('hidden');
+    if (photoDragOverlay) photoDragOverlay.classList.remove('active');
+
+    generateQR();
+    drawCard();
+}
+
+// ──── CONTROL PANEL TAB SWITCHING (DESIGNER vs RECENT) ────
+function switchControlTab(tabName) {
+    state.currentControlTab = tabName;
+    const tabDesignerBtn = document.getElementById('tabBtnDesigner');
+    const tabRecentBtn = document.getElementById('tabBtnRecent');
+    const designerContent = document.getElementById('designerTabContent');
+    const recentContent = document.getElementById('recentTabContent');
+
+    if (tabName === 'designer') {
+        if (tabDesignerBtn) tabDesignerBtn.classList.add('active');
+        if (tabRecentBtn) tabRecentBtn.classList.remove('active');
+        if (designerContent) designerContent.classList.remove('hidden');
+        if (recentContent) recentContent.classList.add('hidden');
+    } else {
+        if (tabDesignerBtn) tabDesignerBtn.classList.remove('active');
+        if (tabRecentBtn) tabRecentBtn.classList.add('active');
+        if (designerContent) designerContent.classList.add('hidden');
+        if (recentContent) recentContent.classList.remove('hidden');
+        renderRecentWorksList();
+    }
+}
+
+// ──── RENDER RECENT WORKS LIST (DOWNWARD LISTING) ────
+function renderRecentWorksList() {
+    const container = document.getElementById('recentWorksList');
+    const badge = document.getElementById('recentTabCountBadge');
+    const cards = getAllBatchCards();
+
+    if (badge) badge.textContent = cards.length;
+    if (!container) return;
+
+    if (cards.length === 0) {
+        container.innerHTML = `
+            <div style="text-align:center; padding: 30px 15px; color: #94a3b8;">
+                <i class="fas fa-folder-open" style="font-size: 32px; color: #64748b; margin-bottom: 10px; display:block;"></i>
+                <p style="font-size: 13px; font-weight: 600;">സേവ് ചെയ്ത കാർഡുകൾ ഒന്നും ലഭ്യമല്ല</p>
+                <p style="font-size: 11px; margin-top: 5px;">ഡിസൈനറിൽ ഒരു കാർഡ് തയ്യാറാക്കി "ബാച്ചിലേക്ക് സേവ് ചെയ്യുക" ക്ലിക്ക് ചെയ്യുക.</p>
+            </div>
+        `;
+        return;
+    }
+
+    container.innerHTML = cards.map(c => {
+        const typeBadgeClass = c.cardType === 'visitor' ? 'type-visitor' : (c.cardType === 'staff' ? 'type-staff' : 'type-student');
+        return `
+            <div class="recent-card-item">
+                <div class="recent-card-top-row">
+                    <span class="recent-batch-tag"><i class="fas fa-graduation-cap"></i> ${c.batch}</span>
+                    <span class="recent-type-badge ${typeBadgeClass}">${(c.cardType || 'visitor').toUpperCase()}</span>
+                </div>
+                <div class="recent-main-row">
+                    <div class="recent-thumbs-box">
+                        <img src="${c.frontImg}" class="recent-thumb" alt="Front" onclick="previewCardFull('${c.id}')" title="Front Preview">
+                        <img src="${c.backImg}" class="recent-thumb" alt="Back" onclick="previewCardFull('${c.id}')" title="Back Preview">
+                    </div>
+                    <div class="recent-details">
+                        <div class="recent-student-name" title="${c.name}">${c.name}</div>
+                        <div class="recent-meta-line">
+                            <span>Adm No: <strong style="color:#ef4444">${c.idNumber || '-'}</strong></span>
+                            <span>•</span>
+                            <span>${c.roleOrDept || '-'}</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="recent-actions-row">
+                    <button type="button" class="btn-recent-action btn-recent-edit" onclick="loadCardToDesignerAndSwitch('${c.id}')" title="എഡിറ്റ് ചെയ്യുക">
+                        <i class="fas fa-edit"></i> Edit
+                    </button>
+                    <button type="button" class="btn-recent-action btn-recent-dl" onclick="downloadSingleCard('${c.id}', 'front')" title="Front PNG ഡൗൺലോഡ്">
+                        <i class="fas fa-download"></i> Front
+                    </button>
+                    <button type="button" class="btn-recent-action btn-recent-dl" onclick="downloadSingleCard('${c.id}', 'back')" title="Back PNG ഡൗൺലോഡ്">
+                        <i class="fas fa-download"></i> Back
+                    </button>
+                    <button type="button" class="btn-recent-action btn-recent-del" onclick="deleteRecentCard('${c.id}')" title="ഡിലീറ്റ് ചെയ്യുക">
+                        <i class="fas fa-trash-alt"></i>
+                    </button>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+// ──── QUICK SEARCH BY ADMISSION NUMBER ────
+function searchAndLoadByAdmNo(query) {
+    const qInput = document.getElementById('quickAdmSearchInput');
+    const searchVal = (query || (qInput ? qInput.value : '')).trim().toLowerCase();
+
+    if (!searchVal) {
+        showToast('അഡ്മിഷൻ നമ്പർ നൽകുക (e.g. 747)', 'info');
+        if (qInput) qInput.focus();
+        return;
+    }
+
+    const cards = getAllBatchCards();
+    const found = cards.find(c => (c.idNumber || '').toLowerCase() === searchVal) ||
+                  cards.find(c => (c.idNumber || '').toLowerCase().includes(searchVal));
+
+    if (found) {
+        loadCardToDesignerAndSwitch(found.id);
+        showToast(`Admission No: ${found.idNumber} (${found.name}) എഡിറ്റിംഗിനായി ലോഡ് ചെയ്തു! ✓`, 'success');
+        if (qInput) qInput.value = '';
+    } else {
+        showToast(`Admission No "${searchVal}" ഉള്ള കാർഡ് കണ്ടെത്താൻ കഴിഞ്ഞില്ല.`, 'error');
+    }
+}
+
+// ──── LOAD CARD TO DESIGNER AND SWITCH TO DESIGNER TAB ────
+function loadCardToDesignerAndSwitch(cardId) {
+    loadCardToDesigner(cardId);
+    switchControlTab('designer');
+    const aside = document.getElementById('controlsPanel');
+    if (aside) aside.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ──── DELETE CARD FROM RECENT LIST ────
+function deleteRecentCard(cardId) {
+    const cards = getAllBatchCards();
+    const card = cards.find(c => c.id === cardId);
+    if (!card) return;
+
+    if (confirm(`"${card.name}" എന്ന വിദ്യാർത്ഥിയുടെ കാർഡ് ഒഴിവാക്കണോ?`)) {
+        deleteCardFromBatchDB(cardId);
+        renderRecentWorksList();
+        updateBatchCountBadges();
+        showToast('കാർഡ് ഡിലീറ്റ് ചെയ്തു.', 'info');
     }
 }
 
@@ -1776,15 +2431,38 @@ function loadCardToDesigner(cardId) {
     }
 
     if (card.cardType === 'visitor') {
-        if (visitorStudentNameInput) visitorStudentNameInput.value = card.name;
-        if (visitorStudentIdInput) visitorStudentIdInput.value = card.idNumber;
-        if (visitorDurationInput) visitorDurationInput.value = card.roleOrDept || card.batch;
-        if (visitorStudentContactInput && card.phone) visitorStudentContactInput.value = card.phone;
+        if (visitorStudentNameInput) visitorStudentNameInput.value = card.name || '';
+        if (visitorStudentIdInput) visitorStudentIdInput.value = card.idNumber || '';
+        if (visitorDurationInput) visitorDurationInput.value = card.roleOrDept || card.validity || card.batch || '2026-2032';
+        if (visitorStudentContactInput) visitorStudentContactInput.value = card.phone || '';
+        if (visitorStudentAddr1Input && card.addr1) visitorStudentAddr1Input.value = card.addr1;
+        if (visitorStudentAddr2Input && card.addr2) visitorStudentAddr2Input.value = card.addr2;
+        if (personBloodInput && card.blood) personBloodInput.value = card.blood;
     } else {
-        if (personNameInput) personNameInput.value = card.name;
-        if (personIdInput) personIdInput.value = card.idNumber;
-        if (personRoleInput) personRoleInput.value = card.roleOrDept;
-        if (personPhoneInput && card.phone) personPhoneInput.value = card.phone;
+        if (personNameInput) personNameInput.value = card.name || '';
+        if (personIdInput) personIdInput.value = card.idNumber || '';
+        if (personRoleInput) personRoleInput.value = card.roleOrDept || '';
+        if (personPhoneInput) personPhoneInput.value = card.phone || '';
+        if (personBloodInput && card.blood) personBloodInput.value = card.blood;
+        if (personGuardianInput && card.guardian) personGuardianInput.value = card.guardian;
+        if (personValidityInput && card.validity) personValidityInput.value = card.validity;
+        if (personAddressInput && card.addr1) personAddressInput.value = card.addr1;
+    }
+
+    // Restore photo if stored on card
+    if (card.frontImg && card.frontImg.startsWith('data:image/')) {
+        const img = new Image();
+        img.onload = () => {
+            state.userPhoto = img;
+            state.photoOffsetX = 0;
+            state.photoOffsetY = 0;
+            state.photoZoom = 100;
+            if (photoControls) photoControls.classList.remove('hidden');
+            if (photoDragOverlay) photoDragOverlay.classList.add('active');
+            updateDragOverlayPosition();
+            drawCard();
+        };
+        img.src = card.frontImg;
     }
 
     closeBatchModal();
@@ -1828,7 +2506,7 @@ function previewCardFull(cardId) {
     if (loadBtn) {
         loadBtn.onclick = () => {
             closeCardPreviewModal();
-            loadCardToDesigner(card.id);
+            loadCardToDesignerAndSwitch(card.id);
         };
     }
 
@@ -1866,6 +2544,7 @@ function deleteCardFromBatch(cardId) {
         deleteCardFromBatchDB(cardId);
         renderBatchFilterPills();
         renderBatchCards(state.activeFilterBatch, state.searchQuery);
+        renderRecentWorksList();
         showToast('കാർഡ് ഡിലീറ്റ് ചെയ്തു.', 'info');
     }
 }
@@ -2161,6 +2840,14 @@ window.updateMemberName = updateMemberName;
 window.updateMemberRelation = updateMemberRelation;
 window.handleMemberPhotoUpload = handleMemberPhotoUpload;
 
+// Tab switcher & Recent works & Quick search
+window.switchControlTab = switchControlTab;
+window.renderRecentWorksList = renderRecentWorksList;
+window.searchAndLoadByAdmNo = searchAndLoadByAdmNo;
+window.loadCardToDesignerAndSwitch = loadCardToDesignerAndSwitch;
+window.deleteRecentCard = deleteRecentCard;
+window.resetDesignerForm = resetDesignerForm;
+
 // Batch & Drive functions
 window.handleBatchSelectChange = handleBatchSelectChange;
 window.handleCustomBatchInput = handleCustomBatchInput;
@@ -2183,4 +2870,5 @@ window.uploadCurrentCardToDrive = uploadCurrentCardToDrive;
 window.uploadCurrentBatchToDrive = uploadCurrentBatchToDrive;
 window.uploadSingleBatchCardToDrive = uploadSingleBatchCardToDrive;
 window.showToast = showToast;
+
 

@@ -13,7 +13,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-    <link rel="stylesheet" href="style.css?v=3.5.0">
+    <link rel="stylesheet" href="style.css?v=4.0.0">
 </head>
 <body class="min-h-screen">
 
@@ -56,130 +56,168 @@
         <!-- ──── LEFT PANEL: Controls ──── -->
         <aside class="controls-panel" id="controlsPanel">
             
-            <!-- Batch Management Section -->
-            <div class="panel-section">
-                <h3 class="section-title"><i class="fas fa-graduation-cap"></i> ബാച്ച് വിവരങ്ങൾ (Batch)</h3>
-                <div class="form-row">
-                    <div class="form-group" style="flex:1;">
-                        <label>വിദ്യാർത്ഥി ബാച്ച് (Academic Batch)</label>
-                        <select id="batchSelect" class="form-input font-bold" onchange="handleBatchSelectChange(this.value)">
-                            <option value="2026-2032" selected>Batch 2026-2032</option>
-                            <option value="2025-2031">Batch 2025-2031</option>
-                            <option value="2024-2030">Batch 2024-2030</option>
-                            <option value="2023-2029">Batch 2023-2029</option>
-                            <option value="2022-2028">Batch 2022-2028</option>
-                            <option value="custom">+ പുതിയ ബാച്ച് നൽകുക (Custom)</option>
-                        </select>
-                    </div>
-                    <div class="form-group hidden" id="customBatchWrapper" style="flex:1;">
-                        <label>പുതിയ ബാച്ച് പേര്</label>
-                        <input type="text" id="customBatchInput" class="form-input font-bold" placeholder="e.g. 2027-2033" oninput="handleCustomBatchInput(this.value)">
-                    </div>
-                </div>
-            </div>
-
-            <!-- Card Type Selector -->
-            <div class="panel-section">
-                <h3 class="section-title"><i class="fas fa-layer-group"></i> കാർഡ് തരം തിരഞ്ഞെടുക്കുക</h3>
-                <div class="card-type-grid">
-                    <button class="card-type-btn" data-type="student" onclick="switchCardType('student')">
-                        <i class="fas fa-user-graduate"></i>
-                        <span>Student</span>
-                    </button>
-                    <button class="card-type-btn" data-type="staff" onclick="switchCardType('staff')">
-                        <i class="fas fa-chalkboard-teacher"></i>
-                        <span>Staff</span>
-                    </button>
-                    <button class="card-type-btn active" data-type="visitor" onclick="switchCardType('visitor')">
-                        <i class="fas fa-user-friends"></i>
-                        <span>Visitor</span>
+            <!-- Quick Search by Admission No (Quick Find & Edit) -->
+            <div class="panel-section quick-search-section">
+                <label class="quick-search-label">
+                    <i class="fas fa-search"></i> അഡ്മിഷൻ നമ്പർ സെർച്ച് (Quick Find & Edit)
+                </label>
+                <div class="quick-search-box">
+                    <input type="text" id="quickAdmSearchInput" class="form-input" placeholder="Admission No (e.g. 747)" onkeydown="if(event.key==='Enter') searchAndLoadByAdmNo()">
+                    <button type="button" class="btn-quick-find" onclick="searchAndLoadByAdmNo()" title="കണ്ടെത്തി എഡിറ്റ് ചെയ്യുക">
+                        <i class="fas fa-edit"></i> എഡിറ്റ്
                     </button>
                 </div>
             </div>
 
-            <!-- Institution Details -->
-            <div class="panel-section">
-                <h3 class="section-title"><i class="fas fa-university"></i> സ്ഥാപന വിവരങ്ങൾ</h3>
-                <div class="form-group">
-                    <label>അറബിക് പേര് (Arabic Title)</label>
-                    <input type="text" id="instArabicName" class="form-input text-right" dir="rtl">
-                </div>
-                <div class="form-group">
-                    <label>സ്ഥാപനത്തിന്റെ പേര് (English)</label>
-                    <input type="text" id="instName" class="form-input">
-                </div>
-                <div class="form-group">
-                    <label>സ്ഥാപന വിലാസം</label>
-                    <input type="text" id="instAddress" class="form-input">
-                </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>ഫോൺ</label>
-                        <input type="text" id="instPhone" class="form-input">
-                    </div>
-                    <div class="form-group">
-                        <label>വെബ്സൈറ്റ്</label>
-                        <input type="text" id="instWebsite" class="form-input">
-                    </div>
-                </div>
-                <div class="form-group">
-                    <label>ലോഗോ അപ്ലോഡ് (ഓപ്ഷണൽ)</label>
-                    <div class="file-upload-wrapper">
-                        <input type="file" id="logoInput" accept="image/*" class="file-input">
-                        <div class="file-upload-label" id="logoLabel">
-                            <i class="fas fa-cloud-upload-alt"></i>
-                            <span>ലോഗോ തിരഞ്ഞെടുക്കുക</span>
+            <!-- Panel Tabs: Designer vs Recent Works -->
+            <div class="panel-tabs-bar">
+                <button type="button" class="panel-tab-btn active" id="tabBtnDesigner" onclick="switchControlTab('designer')">
+                    <i class="fas fa-paint-brush"></i> കാർഡ് ഡിസൈനർ
+                </button>
+                <button type="button" class="panel-tab-btn" id="tabBtnRecent" onclick="switchControlTab('recent')">
+                    <i class="fas fa-history"></i> റീസെന്റ് വർക്കുകൾ (<span id="recentTabCountBadge">0</span>)
+                </button>
+            </div>
+
+            <!-- ── TAB 1: DESIGNER CONTROLS ── -->
+            <div id="designerTabContent">
+                <!-- Batch Management Section -->
+                <div class="panel-section">
+                    <h3 class="section-title"><i class="fas fa-graduation-cap"></i> ബാച്ച് വിവരങ്ങൾ (Batch)</h3>
+                    <div class="form-row">
+                        <div class="form-group" style="flex:1;">
+                            <label>വിദ്യാർത്ഥി ബാച്ച് (Academic Batch)</label>
+                            <select id="batchSelect" class="form-input font-bold" onchange="handleBatchSelectChange(this.value)">
+                                <option value="2026-2032" selected>Batch 2026-2032</option>
+                                <option value="2025-2031">Batch 2025-2031</option>
+                                <option value="2024-2030">Batch 2024-2030</option>
+                                <option value="2023-2029">Batch 2023-2029</option>
+                                <option value="2022-2028">Batch 2022-2028</option>
+                                <option value="custom">+ പുതിയ ബാച്ച് നൽകുക (Custom)</option>
+                            </select>
+                        </div>
+                        <div class="form-group hidden" id="customBatchWrapper" style="flex:1;">
+                            <label>പുതിയ ബാച്ച് പേര്</label>
+                            <input type="text" id="customBatchInput" class="form-input font-bold" placeholder="e.g. 2027-2033" oninput="handleCustomBatchInput(this.value)">
                         </div>
                     </div>
                 </div>
-            </div>
 
-            <!-- Person Details (Student/Staff) -->
-            <div class="panel-section hidden" id="personSection">
-                <h3 class="section-title"><i class="fas fa-user-edit"></i> <span id="personSectionTitle">വിദ്യാർത്ഥി വിവരങ്ങൾ</span></h3>
-                <div class="form-row">
+                <!-- Card Type Selector -->
+                <div class="panel-section">
+                    <h3 class="section-title"><i class="fas fa-layer-group"></i> കാർഡ് തരം തിരഞ്ഞെടുക്കുക</h3>
+                    <div class="card-type-grid">
+                        <button class="card-type-btn" data-type="student" onclick="switchCardType('student')">
+                            <i class="fas fa-user-graduate"></i>
+                            <span>Student</span>
+                        </button>
+                        <button class="card-type-btn" data-type="staff" onclick="switchCardType('staff')">
+                            <i class="fas fa-chalkboard-teacher"></i>
+                            <span>Staff</span>
+                        </button>
+                        <button class="card-type-btn active" data-type="visitor" onclick="switchCardType('visitor')">
+                            <i class="fas fa-user-friends"></i>
+                            <span>Visitor</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Institution Details -->
+                <div class="panel-section">
+                    <h3 class="section-title"><i class="fas fa-university"></i> സ്ഥാപന വിവരങ്ങൾ</h3>
                     <div class="form-group">
-                        <label id="nameLabel">പേര്</label>
-                        <input type="text" id="personName" class="form-input" placeholder="പേര് നൽകുക">
+                        <label>അറബിക് പേര് (Arabic Title)</label>
+                        <input type="text" id="instArabicName" class="form-input text-right" dir="rtl">
                     </div>
                     <div class="form-group">
-                        <label id="idLabel">Admission No</label>
-                        <input type="text" id="personId" class="form-input" placeholder="ID നൽകുക">
-                    </div>
-                </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label id="roleLabel">ക്ലാസ്സ് / Course</label>
-                        <input type="text" id="personRole" class="form-input" placeholder="ക്ലാസ്സ് നൽകുക">
+                        <label>സ്ഥാപനത്തിന്റെ പേര് (English)</label>
+                        <input type="text" id="instName" class="form-input">
                     </div>
                     <div class="form-group">
-                        <label>രക്ത ഗ്രൂപ്പ്</label>
-                        <input type="text" id="personBlood" class="form-input" placeholder="O+Ve">
+                        <label>സ്ഥാപന വിലാസം</label>
+                        <input type="text" id="instAddress" class="form-input">
                     </div>
-                </div>
-                <div class="form-row">
                     <div class="form-group">
-                        <label>ഫോൺ നമ്പർ</label>
-                        <input type="text" id="personPhone" class="form-input" placeholder="+91 9876543210">
+                        <label>അഫിലിയേഷൻ (Affiliation)</label>
+                        <input type="text" id="instAffiliation" class="form-input font-bold" value="Affiliated to Coordination of Islamic Colleges">
                     </div>
-                    <div class="form-group" id="dobGroup">
-                        <label>ജനന തീയതി</label>
-                        <input type="date" id="personDob" class="form-input">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>ഫോൺ</label>
+                            <input type="text" id="instPhone" class="form-input">
+                        </div>
+                        <div class="form-group">
+                            <label>വെബ്സൈറ്റ്</label>
+                            <input type="text" id="instWebsite" class="form-input">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>ലോഗോ അപ്ലോഡ് (ഓപ്ഷണൽ)</label>
+                        <div class="file-upload-wrapper">
+                            <input type="file" id="logoInput" accept="image/*" class="file-input">
+                            <div class="file-upload-label" id="logoLabel">
+                                <i class="fas fa-cloud-upload-alt"></i>
+                                <span>ലോഗോ തിരഞ്ഞെടുക്കുക</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
-                <div class="form-group" id="addressGroup">
-                    <label>വിലാസം</label>
-                    <input type="text" id="personAddress" class="form-input" placeholder="വിലാസം നൽകുക">
+
+                <!-- Person Details (Student/Staff) -->
+                <div class="panel-section hidden" id="personSection">
+                    <h3 class="section-title"><i class="fas fa-user-edit"></i> <span id="personSectionTitle">വിദ്യാർത്ഥി വിവരങ്ങൾ</span></h3>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label id="nameLabel">പേര്</label>
+                            <input type="text" id="personName" class="form-input" placeholder="പേര് നൽകുക">
+                        </div>
+                        <div class="form-group">
+                            <label id="idLabel">Admission No</label>
+                            <input type="text" id="personId" class="form-input font-bold text-red-500" placeholder="ID നൽകുക">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label id="roleLabel">ക്ലാസ്സ് / Course</label>
+                            <input type="text" id="personRole" class="form-input" placeholder="e.g. Wafiyya Degree">
+                        </div>
+                        <div class="form-group">
+                            <label>രക്ത ഗ്രൂപ്പ്</label>
+                            <input type="text" id="personBlood" class="form-input font-bold text-red-500" placeholder="O+Ve">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>രക്ഷിതാവിന്റെ പേര് (Guardian)</label>
+                            <input type="text" id="personGuardian" class="form-input" placeholder="e.g. M ABOOBACKER">
+                        </div>
+                        <div class="form-group">
+                            <label>കാലാവധി (Validity)</label>
+                            <input type="text" id="personValidity" class="form-input font-bold" placeholder="e.g. 2026-2032" value="2026-2032">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>ഫോൺ നമ്പർ</label>
+                            <input type="text" id="personPhone" class="form-input" placeholder="+91 9876543210">
+                        </div>
+                        <div class="form-group" id="dobGroup">
+                            <label>ജനന തീയതി</label>
+                            <input type="date" id="personDob" class="form-input">
+                        </div>
+                    </div>
+                    <div class="form-group" id="addressGroup">
+                        <label>വിലാസം</label>
+                        <input type="text" id="personAddress" class="form-input" placeholder="വിലാസം നൽകുക">
+                    </div>
+                    <div class="form-group hidden" id="departmentGroup">
+                        <label>Department</label>
+                        <input type="text" id="staffDept" class="form-input" placeholder="Department">
+                    </div>
+                    <div class="form-group hidden" id="joinDateGroup">
+                        <label>Joining Date</label>
+                        <input type="date" id="staffJoinDate" class="form-input">
                 </div>
-                <div class="form-group hidden" id="departmentGroup">
-                    <label>Department</label>
-                    <input type="text" id="staffDept" class="form-input" placeholder="Department">
-                </div>
-                <div class="form-group hidden" id="joinDateGroup">
-                    <label>Joining Date</label>
-                    <input type="date" id="staffJoinDate" class="form-input">
-                </div>
-            </div>
 
             <!-- Visitor Section: Student Details (Front) & Authorized Family (Back) -->
             <div class="panel-section" id="visitorSection">
@@ -277,6 +315,19 @@
                     <div class="form-group">
                         <label>Accent Color</label>
                         <input type="color" id="accentColor" value="#34d399" class="color-input">
+                    </div>
+                </div>
+            </div> <!-- End of #designerTabContent -->
+
+            <!-- ── TAB 2: RECENT WORKS (ലിസ്റ്റ് താഴേക്ക്) ── -->
+            <div id="recentTabContent" class="hidden">
+                <div class="panel-section">
+                    <h3 class="section-title"><i class="fas fa-history"></i> റീസെന്റ് കാർഡുകൾ (Recent Works)</h3>
+                    <p style="font-size: 11px; color: #94a3b8; margin-bottom: 14px; line-height: 1.5;">
+                        സേവ് ചെയ്ത എല്ലാ ഐഡി കാർഡുകളും താഴെ ലിസ്റ്റ് ചെയ്തിരിക്കുന്നു. എഡിറ്റ് ചെയ്യാൻ <strong>Edit</strong> ബട്ടൺ ക്ലിക്ക് ചെയ്യുക.
+                    </p>
+                    <div class="recent-works-container" id="recentWorksList">
+                        <!-- Populated dynamically by app.js -->
                     </div>
                 </div>
             </div>
@@ -487,6 +538,6 @@
     <!-- ═══════════════ TOAST NOTIFICATION CONTAINER ═══════════════ -->
     <div class="toast-container" id="toastContainer"></div>
 
-    <script src="app.js?v=3.5.0"></script>
+    <script src="app.js?v=4.0.0"></script>
 </body>
 </html>
