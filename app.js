@@ -15,7 +15,7 @@ const INSTITUTIONS = {
         phone: "0494 2608283, 8590658550",
         website: "https://kkhmstorage.github.io/markaz-wafy-college/",
         themeColor: "#173f8a",
-        accentColor: "#ffd200",
+        accentColor: "#3b82f6",
         tagline: "Empowering Women Through Knowledge"
     },
     kkhm: {
@@ -26,7 +26,7 @@ const INSTITUTIONS = {
         phone: "0494 2608283, 8590658550",
         website: "https://kkhmstorage.github.io/markaz-wafy-college/",
         themeColor: "#173f8a",
-        accentColor: "#ffd200",
+        accentColor: "#3b82f6",
         tagline: "Enlightening Minds, Building Futures"
     }
 };
@@ -1033,8 +1033,7 @@ function drawVisitorBackSide() {
 function drawFrontSide() {
     const W = canvas.width;
     const H = canvas.height;
-    const themeColor = themeColorInput.value || '#064e3b';
-    const accentColor = accentColorInput.value || '#34d399';
+    const themeColor = themeColorInput.value || '#173f8a';
 
     // Clear
     ctx.clearRect(0, 0, W, H);
@@ -1043,101 +1042,70 @@ function drawFrontSide() {
     roundRect(0, 0, W, H, 28);
     ctx.clip();
 
-    // Background
+    // ── Clean White Background ──
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, W, H);
 
-    // Top Header with curve
-    const headerGrad = ctx.createLinearGradient(0, 0, W, 0);
-    headerGrad.addColorStop(0, themeColor);
-    headerGrad.addColorStop(1, darkenColor(themeColor, 15));
-    ctx.fillStyle = headerGrad;
-    ctx.beginPath();
-    ctx.moveTo(0, 0);
-    ctx.lineTo(W, 0);
-    ctx.lineTo(W, 200);
-    ctx.quadraticCurveTo(W * 0.5, 280, 0, 200);
-    ctx.fill();
+    // ── Top Header Banner (Clean Solid Blue/Theme Color - NO YELLOW) ──
+    const headerH = 175;
+    ctx.fillStyle = themeColor;
+    ctx.fillRect(0, 0, W, headerH);
 
-    // Decorative accent stripe
-    ctx.fillStyle = accentColor;
-    ctx.beginPath();
-    ctx.moveTo(0, 200);
-    ctx.quadraticCurveTo(W * 0.5, 280, W, 200);
-    ctx.quadraticCurveTo(W * 0.5, 290, 0, 210);
-    ctx.fill();
-
-    // Logo in header
-    if (state.logoImage) {
-        const logoSize = 55;
-        const logoX = 30;
-        const logoY = 25;
-        
-        ctx.beginPath();
-        ctx.arc(logoX + logoSize/2, logoY + logoSize/2, logoSize/2 + 4, 0, Math.PI * 2);
+    // ── Arabic College Title ──
+    const arabicTitle = (instArabicNameInput && instArabicNameInput.value) || 
+        (INSTITUTIONS[state.currentInstitution] && INSTITUTIONS[state.currentInstitution].arabicName) || '';
+    if (arabicTitle) {
+        ctx.textAlign = 'center';
         ctx.fillStyle = '#ffffff';
-        ctx.fill();
-
-        ctx.save();
-        ctx.beginPath();
-        ctx.arc(logoX + logoSize/2, logoY + logoSize/2, logoSize/2, 0, Math.PI * 2);
-        ctx.clip();
-        ctx.drawImage(state.logoImage, logoX, logoY, logoSize, logoSize);
-        ctx.restore();
+        ctx.font = 'bold 21px "Amiri", "Noto Sans Arabic", sans-serif';
+        ctx.fillText(arabicTitle, W / 2, 45);
     }
 
-    // Institution Name
+    // ── Institution Name (Clean Crisp White - NO YELLOW) ──
     ctx.fillStyle = '#ffffff';
     ctx.textAlign = 'center';
-    
-    const instName = instNameInput.value || INSTITUTIONS[state.currentInstitution].name;
-    ctx.font = 'bold 24px Inter, sans-serif';
-    
-    const nameLines = wrapText(instName.toUpperCase(), W - 120);
-    let nameY = state.logoImage ? 45 : 55;
-    nameLines.forEach((line, i) => {
-        ctx.fillText(line, W / 2, nameY + (i * 30));
-    });
+    const instName = (instNameInput && instNameInput.value) || INSTITUTIONS[state.currentInstitution].name;
+    ctx.font = 'bold 23px Inter, sans-serif';
+    ctx.fillText(instName.toUpperCase(), W / 2, arabicTitle ? 80 : 65);
 
-    // Address
-    const addrY = nameY + (nameLines.length * 30) + 8;
-    ctx.font = '14px Inter, sans-serif';
-    ctx.fillStyle = 'rgba(255,255,255,0.85)';
-    ctx.fillText(instAddressInput.value || '', W / 2, addrY);
+    // ── Address & Contact in Header ──
+    const addr = (instAddressInput && instAddressInput.value) || INSTITUTIONS[state.currentInstitution].address;
+    const phone = (instPhoneInput && instPhoneInput.value) || INSTITUTIONS[state.currentInstitution].phone;
+    ctx.font = '500 13px Inter, sans-serif';
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+    ctx.fillText(addr + (phone ? ' | Ph: ' + phone : ''), W / 2, arabicTitle ? 116 : 100);
 
-    // Card Type Badge
-    const badge = getCardTypeBadgeColor();
+    // ── Card Type Pill Badge ──
     const badgeText = getCardTypeLabel();
-    ctx.font = 'bold 14px Inter, sans-serif';
-    const badgeW = ctx.measureText(badgeText).width + 40;
-    const badgeH = 30;
-    const badgeX = (W - badgeW) / 2;
-    const badgeY = addrY + 18;
+    const badge = getCardTypeBadgeColor();
+    const pillW = 280;
+    const pillH = 38;
+    const pillX = (W - pillW) / 2;
+    const pillY = headerH - 19;
+    const pillRadius = 19;
 
-    roundRect(badgeX, badgeY, badgeW, badgeH, 15);
+    roundRect(pillX, pillY, pillW, pillH, pillRadius);
     ctx.fillStyle = badge.bg;
     ctx.fill();
-    ctx.fillStyle = badge.text;
-    ctx.font = 'bold 12px Inter, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText(badgeText, W / 2, badgeY + 20);
-
-    // Photo Circle
-    const centerX = W / 2;
-    const centerY = 340;
-    const radius = 120;
-
-    ctx.beginPath();
-    ctx.arc(centerX, centerY, radius + 10, 0, Math.PI * 2);
-    ctx.strokeStyle = accentColor;
-    ctx.lineWidth = 3;
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
+    ctx.lineWidth = 1;
     ctx.stroke();
 
+    ctx.font = '800 14px Inter, sans-serif';
+    ctx.fillStyle = badge.text;
+    ctx.textAlign = 'center';
+    ctx.fillText(badgeText, W / 2, pillY + 24);
+
+    // ── Photo Circle (Clean Theme Color Ring - NO YELLOW) ──
+    const centerX = W / 2;
+    const centerY = 330;
+    const radius = 105;
+
     ctx.beginPath();
-    ctx.arc(centerX, centerY, radius + 5, 0, Math.PI * 2);
+    ctx.arc(centerX, centerY, radius + 4, 0, Math.PI * 2);
     ctx.fillStyle = '#ffffff';
     ctx.fill();
-    ctx.lineWidth = 2;
+    ctx.lineWidth = 3;
     ctx.strokeStyle = themeColor;
     ctx.stroke();
 
@@ -1162,112 +1130,96 @@ function drawFrontSide() {
         const dy = centerY - drawH / 2 + state.photoOffsetY;
         ctx.drawImage(state.userPhoto, dx, dy, drawW, drawH);
     } else {
-        const placeholderGrad = ctx.createLinearGradient(centerX - radius, centerY - radius, centerX + radius, centerY + radius);
-        placeholderGrad.addColorStop(0, '#e2e8f0');
-        placeholderGrad.addColorStop(1, '#cbd5e1');
-        ctx.fillStyle = placeholderGrad;
+        ctx.fillStyle = '#f1f5f9';
         ctx.fillRect(centerX - radius, centerY - radius, radius * 2, radius * 2);
         ctx.fillStyle = '#94a3b8';
-        ctx.font = '60px Inter';
+        ctx.font = '55px Inter';
         ctx.textAlign = 'center';
         ctx.fillText('📷', centerX, centerY + 18);
     }
     ctx.restore();
 
-    // Details Section
-    ctx.textAlign = 'center';
+    // ── Details Section ──
     drawPersonFrontDetails(centerY + radius + 40);
 
-    // Bottom Footer
-    const footerGrad = ctx.createLinearGradient(0, H - 90, 0, H);
-    footerGrad.addColorStop(0, themeColor);
-    footerGrad.addColorStop(1, darkenColor(themeColor, 20));
-    ctx.fillStyle = footerGrad;
-    ctx.beginPath();
-    ctx.moveTo(0, H);
-    ctx.lineTo(W, H);
-    ctx.lineTo(W, H - 70);
-    ctx.quadraticCurveTo(W * 0.5, H - 100, 0, H - 70);
-    ctx.fill();
+    // ── Bottom Footer (Clean Solid Theme Color - NO YELLOW) ──
+    ctx.fillStyle = themeColor;
+    ctx.fillRect(0, H - 48, W, 48);
 
-    ctx.fillStyle = accentColor;
-    ctx.beginPath();
-    ctx.moveTo(0, H - 70);
-    ctx.quadraticCurveTo(W * 0.5, H - 100, W, H - 70);
-    ctx.quadraticCurveTo(W * 0.5, -95, 0, H - 65);
-    ctx.fill();
-
-    ctx.fillStyle = 'rgba(255,255,255,0.9)';
-    ctx.font = '13px Inter, sans-serif';
+    ctx.fillStyle = 'rgba(255,255,255,0.95)';
+    ctx.font = '500 13px Inter, sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText(instWebsiteInput.value || '', W / 2, H - 25);
+    ctx.fillText(instWebsiteInput.value || '', W / 2, H - 26);
 
-    ctx.fillStyle = 'rgba(255,255,255,0.7)';
-    ctx.font = '12px Inter, sans-serif';
-    ctx.fillText('☎ ' + (instPhoneInput.value || ''), W / 2, H - 8);
+    // Subtle outer card border
+    roundRect(0, 0, W, H, 28);
+    ctx.strokeStyle = '#e2e8f0';
+    ctx.lineWidth = 1;
+    ctx.stroke();
 
     ctx.restore();
 }
 
 function drawPersonFrontDetails(startY) {
     const W = canvas.width;
-    const themeColor = themeColorInput.value;
+    const themeColor = themeColorInput.value || '#173f8a';
 
     // Name
-    ctx.fillStyle = '#1f2937';
-    ctx.font = 'bold 36px Inter, sans-serif';
+    ctx.fillStyle = '#111827';
+    ctx.font = '900 32px Inter, sans-serif';
     ctx.textAlign = 'center';
     const name = personNameInput.value || 'Student Name';
-    ctx.fillText(name, W / 2, startY);
+    ctx.fillText(name.toUpperCase(), W / 2, startY);
 
     // Role / Class
     ctx.fillStyle = themeColor;
-    ctx.font = '600 20px Inter, sans-serif';
-    ctx.fillText(personRoleInput.value || '', W / 2, startY + 32);
+    ctx.font = '700 18px Inter, sans-serif';
+    ctx.fillText(personRoleInput.value || '', W / 2, startY + 30);
 
     // Divider
     ctx.beginPath();
-    ctx.moveTo(120, startY + 55);
-    ctx.lineTo(W - 120, startY + 55);
+    ctx.moveTo(110, startY + 48);
+    ctx.lineTo(W - 110, startY + 48);
     ctx.strokeStyle = '#e5e7eb';
-    ctx.lineWidth = 2;
+    ctx.lineWidth = 1.5;
     ctx.stroke();
 
     // Details table
     ctx.textAlign = 'left';
-    const labelX = 100;
-    const colonX = 290;
-    const valueX = 310;
-    let detailY = startY + 95;
-    const spacing = 38;
+    const labelX = 110;
+    const colonX = 280;
+    const valueX = 300;
+    let detailY = startY + 84;
+    const spacing = 36;
 
     const details = [];
     
     if (state.currentCardType === 'student') {
-        details.push({ label: 'Admission No', value: personIdInput.value, color: '#374151' });
+        details.push({ label: 'Admission No', value: personIdInput.value, color: '#1f2937' });
         details.push({ label: 'Blood Group', value: personBloodInput.value, color: '#dc2626' });
         if (personDobInput.value) {
-            details.push({ label: 'Date of Birth', value: formatDate(personDobInput.value), color: '#374151' });
+            details.push({ label: 'Date of Birth', value: formatDate(personDobInput.value), color: '#1f2937' });
         }
-        details.push({ label: 'Phone', value: personPhoneInput.value, color: '#374151' });
+        details.push({ label: 'Phone', value: personPhoneInput.value, color: '#1f2937' });
     } else {
-        details.push({ label: 'Staff ID', value: personIdInput.value, color: '#374151' });
+        details.push({ label: 'Staff ID', value: personIdInput.value, color: '#1f2937' });
         if (staffDeptInput.value) {
-            details.push({ label: 'Department', value: staffDeptInput.value, color: '#374151' });
+            details.push({ label: 'Department', value: staffDeptInput.value, color: '#1f2937' });
         }
         details.push({ label: 'Blood Group', value: personBloodInput.value, color: '#dc2626' });
-        details.push({ label: 'Phone', value: personPhoneInput.value, color: '#374151' });
+        details.push({ label: 'Phone', value: personPhoneInput.value, color: '#1f2937' });
         if (staffJoinDateInput.value) {
-            details.push({ label: 'Joined', value: formatDate(staffJoinDateInput.value), color: '#374151' });
+            details.push({ label: 'Joined', value: formatDate(staffJoinDateInput.value), color: '#1f2937' });
         }
     }
 
     details.forEach(d => {
         if (!d.value) return;
         ctx.font = '600 17px Inter, sans-serif';
-        ctx.fillStyle = '#9ca3af';
+        ctx.fillStyle = '#6b7280';
         ctx.fillText(d.label, labelX, detailY);
         ctx.fillText(':', colonX, detailY);
+        ctx.font = '700 17px Inter, sans-serif';
         ctx.fillStyle = d.color;
         ctx.fillText(d.value, valueX, detailY);
         detailY += spacing;
@@ -1276,14 +1228,13 @@ function drawPersonFrontDetails(startY) {
 
 
 // ═══════════════════════════════════════════════
-//  DRAW STUDENT / STAFF BACK SIDE
+//  DRAW STUDENT / STAFF BACK SIDE (NO YELLOW)
 // ═══════════════════════════════════════════════
 
 function drawBackSide() {
     const W = canvas.width;
     const H = canvas.height;
-    const themeColor = themeColorInput.value;
-    const accentColor = accentColorInput.value;
+    const themeColor = themeColorInput.value || '#173f8a';
 
     ctx.clearRect(0, 0, W, H);
 
@@ -1294,23 +1245,18 @@ function drawBackSide() {
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, W, H);
 
-    // Top Header Banner
-    const headerGrad = ctx.createLinearGradient(0, 0, W, 0);
-    headerGrad.addColorStop(0, themeColor);
-    headerGrad.addColorStop(1, darkenColor(themeColor, 15));
-    ctx.fillStyle = headerGrad;
-    ctx.fillRect(0, 0, W, 80);
-    ctx.fillStyle = accentColor;
-    ctx.fillRect(0, 77, W, 4);
+    // Top Header Banner (NO YELLOW)
+    ctx.fillStyle = themeColor;
+    ctx.fillRect(0, 0, W, 70);
 
     // Header title
     ctx.fillStyle = '#ffffff';
     ctx.font = 'bold 20px Inter, sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText(instNameInput.value || INSTITUTIONS[state.currentInstitution].name, W / 2, 45);
+    ctx.fillText(instNameInput.value || INSTITUTIONS[state.currentInstitution].name, W / 2, 42);
 
     // QR Code Section
-    const qrY = 120;
+    const qrY = 115;
     const qrSize = 140;
     const qrX = (W - qrSize) / 2;
 
@@ -1323,15 +1269,15 @@ function drawBackSide() {
         roundRect(qrBoxX, qrBoxY, qrBoxSize, qrBoxSize, 12);
         ctx.fillStyle = '#f8fafc';
         ctx.fill();
-        ctx.strokeStyle = themeColor;
-        ctx.lineWidth = 2;
+        ctx.strokeStyle = '#e2e8f0';
+        ctx.lineWidth = 1.5;
         ctx.stroke();
 
         ctx.drawImage(state.qrImage, qrX, qrY, qrSize, qrSize);
     }
 
     // Terms & Conditions
-    const termsY = qrY + 180;
+    const termsY = qrY + 185;
     ctx.font = 'bold 15px Inter, sans-serif';
     ctx.fillStyle = themeColor;
     ctx.textAlign = 'center';
@@ -1340,7 +1286,7 @@ function drawBackSide() {
     ctx.beginPath();
     ctx.moveTo(100, termsY + 10);
     ctx.lineTo(W - 100, termsY + 10);
-    ctx.strokeStyle = '#d1d5db';
+    ctx.strokeStyle = '#e5e7eb';
     ctx.lineWidth = 1;
     ctx.stroke();
 
@@ -1354,11 +1300,11 @@ function drawBackSide() {
 
     ctx.textAlign = 'left';
     ctx.font = '13px Inter, sans-serif';
-    ctx.fillStyle = '#6b7280';
+    ctx.fillStyle = '#4b5563';
     let termY = termsY + 35;
     terms.forEach(term => {
-        ctx.fillText(term, 70, termY);
-        termY += 25;
+        ctx.fillText(term, 75, termY);
+        termY += 26;
     });
 
     // Contact info
@@ -1387,23 +1333,27 @@ function drawBackSide() {
     ctx.textAlign = 'left';
     ctx.fillText('______________________', 70, H - 85);
     ctx.font = '11px Inter, sans-serif';
-    ctx.fillText('Holder\'s Signature', 100, H - 72);
+    ctx.fillText('Holder\'s Signature', 100, H - 70);
 
     ctx.textAlign = 'right';
     ctx.fillText('______________________', W - 70, H - 85);
     ctx.font = '11px Inter, sans-serif';
-    ctx.fillText('Authorized Signature', W - 100, H - 72);
+    ctx.fillText('Authorized Signature', W - 100, H - 70);
 
-    // Bottom Footer
+    // Bottom Footer (Clean Solid Theme Color - NO YELLOW)
     ctx.fillStyle = themeColor;
-    ctx.fillRect(0, H - 55, W, 55);
-    ctx.fillStyle = accentColor;
-    ctx.fillRect(0, H - 55, W, 3);
+    ctx.fillRect(0, H - 48, W, 48);
 
     ctx.textAlign = 'center';
-    ctx.fillStyle = 'rgba(255,255,255,0.8)';
+    ctx.fillStyle = 'rgba(255,255,255,0.9)';
     ctx.font = '12px Inter, sans-serif';
-    ctx.fillText('Designed by College ID Card System', W / 2, H - 25);
+    ctx.fillText('Designed by College ID Card System', W / 2, H - 22);
+
+    // Subtle outer card border
+    roundRect(0, 0, W, H, 28);
+    ctx.strokeStyle = '#e2e8f0';
+    ctx.lineWidth = 1;
+    ctx.stroke();
 
     ctx.restore();
 }
