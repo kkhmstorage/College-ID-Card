@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="ml">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>College ID Card Designer</title>
+    <meta name="description" content="ID Card Design & Management System for KKHM Islamic & Arts College and AL-GAITH Islamic & Arts College for Girls">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Noto+Sans+Malayalam:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="min-h-screen">
+
+    <!-- ═══════════════ TOP NAVIGATION BAR ═══════════════ -->
+    <nav class="top-nav">
+        <div class="nav-brand">
+            <div class="nav-logo-circle">
+                <i class="fas fa-id-card-alt"></i>
+            </div>
+            <div>
+                <h1 class="nav-title">ID Card Designer</h1>
+                <p class="nav-subtitle">College Identity Card Management</p>
+            </div>
+        </div>
+        <div class="nav-actions">
+            <div class="institution-switcher" id="institutionSwitcher">
+                <button class="inst-btn active" data-inst="kkhm" onclick="switchInstitution('kkhm')">
+                    <span class="inst-dot kkhm-dot"></span>
+                    KKHM
+                </button>
+                <button class="inst-btn" data-inst="algaith" onclick="switchInstitution('algaith')">
+                    <span class="inst-dot algaith-dot"></span>
+                    AL-GAITH
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- ═══════════════ MAIN CONTENT ═══════════════ -->
+    <main class="app-main">
+        <!-- ──── LEFT PANEL: Controls ──── -->
+        <aside class="controls-panel" id="controlsPanel">
+            
+            <!-- Card Type Selector -->
+            <div class="panel-section">
+                <h3 class="section-title"><i class="fas fa-layer-group"></i> കാർഡ് തരം തിരഞ്ഞെടുക്കുക</h3>
+                <div class="card-type-grid">
+                    <button class="card-type-btn active" data-type="student" onclick="switchCardType('student')">
+                        <i class="fas fa-user-graduate"></i>
+                        <span>Student</span>
+                    </button>
+                    <button class="card-type-btn" data-type="staff" onclick="switchCardType('staff')">
+                        <i class="fas fa-chalkboard-teacher"></i>
+                        <span>Staff</span>
+                    </button>
+                    <button class="card-type-btn" data-type="visitor" onclick="switchCardType('visitor')">
+                        <i class="fas fa-user-friends"></i>
+                        <span>Visitor</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Institution Details -->
+            <div class="panel-section">
+                <h3 class="section-title"><i class="fas fa-university"></i> സ്ഥാപന വിവരങ്ങൾ</h3>
+                <div class="form-group">
+                    <label>സ്ഥാപനത്തിന്റെ പേര്</label>
+                    <input type="text" id="instName" class="form-input" readonly>
+                </div>
+                <div class="form-group">
+                    <label>സ്ഥാപന വിലാസം</label>
+                    <input type="text" id="instAddress" class="form-input">
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>ഫോൺ</label>
+                        <input type="text" id="instPhone" class="form-input">
+                    </div>
+                    <div class="form-group">
+                        <label>വെബ്സൈറ്റ്</label>
+                        <input type="text" id="instWebsite" class="form-input">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>ലോഗോ അപ്ലോഡ്</label>
+                    <div class="file-upload-wrapper">
+                        <input type="file" id="logoInput" accept="image/*" class="file-input">
+                        <div class="file-upload-label" id="logoLabel">
+                            <i class="fas fa-cloud-upload-alt"></i>
+                            <span>ലോഗോ തിരഞ്ഞെടുക്കുക</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Person Details (Student/Staff) -->
+            <div class="panel-section" id="personSection">
+                <h3 class="section-title"><i class="fas fa-user-edit"></i> <span id="personSectionTitle">വിദ്യാർത്ഥി വിവരങ്ങൾ</span></h3>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label id="nameLabel">പേര്</label>
+                        <input type="text" id="personName" class="form-input" placeholder="പേര് നൽകുക">
+                    </div>
+                    <div class="form-group">
+                        <label id="idLabel">Admission No</label>
+                        <input type="text" id="personId" class="form-input" placeholder="ID നൽകുക">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label id="roleLabel">ക്ലാസ്സ് / Course</label>
+                        <input type="text" id="personRole" class="form-input" placeholder="ക്ലാസ്സ് നൽകുക">
+                    </div>
+                    <div class="form-group">
+                        <label>രക്ത ഗ്രൂപ്പ്</label>
+                        <input type="text" id="personBlood" class="form-input" placeholder="O+Ve">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>ഫോൺ നമ്പർ</label>
+                        <input type="text" id="personPhone" class="form-input" placeholder="+91 9876543210">
+                    </div>
+                    <div class="form-group" id="dobGroup">
+                        <label>ജനന തീയതി</label>
+                        <input type="date" id="personDob" class="form-input">
+                    </div>
+                </div>
+                <div class="form-group" id="addressGroup">
+                    <label>വിലാസം</label>
+                    <input type="text" id="personAddress" class="form-input" placeholder="വിലാസം നൽകുക">
+                </div>
+                <div class="form-group hidden" id="departmentGroup">
+                    <label>Department</label>
+                    <input type="text" id="staffDept" class="form-input" placeholder="Department">
+                </div>
+                <div class="form-group hidden" id="joinDateGroup">
+                    <label>Joining Date</label>
+                    <input type="date" id="staffJoinDate" class="form-input">
+                </div>
+            </div>
+
+            <!-- Visitor Section -->
+            <div class="panel-section hidden" id="visitorSection">
+                <h3 class="section-title"><i class="fas fa-user-shield"></i> വിസിറ്റർ വിവരങ്ങൾ</h3>
+                <div class="visitor-notice">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <p>രക്ഷിതാവും വിദ്യാർത്ഥിയും മുൻകൂട്ടി രജിസ്റ്റർ ചെയ്ത <strong>രക്തബന്ധമുള്ള വ്യക്തികളെ</strong> മാത്രമേ ഉൾപ്പെടുത്താൻ കഴിയൂ. ഓഫീസ് മുഖാന്തരം മാത്രം ആഡ് ചെയ്യാവുന്നതാണ്.</p>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>വിസിറ്ററുടെ പേര്</label>
+                        <input type="text" id="visitorName" class="form-input" placeholder="പേര് നൽകുക">
+                    </div>
+                    <div class="form-group">
+                        <label>ബന്ധം (Relation)</label>
+                        <select id="visitorRelation" class="form-input">
+                            <option value="">തിരഞ്ഞെടുക്കുക</option>
+                            <option value="പിതാവ് (Father)">പിതാവ് (Father)</option>
+                            <option value="മാതാവ് (Mother)">മാതാവ് (Mother)</option>
+                            <option value="സഹോദരൻ (Brother)">സഹോദരൻ (Brother)</option>
+                            <option value="സഹോദരി (Sister)">സഹോദരി (Sister)</option>
+                            <option value="ഭാര്യ / ഭർത്താവ്">ഭാര്യ / ഭർത്താവ് (Spouse)</option>
+                            <option value="മുത്തച്ഛൻ (Grandfather)">മുത്തച്ഛൻ (Grandfather)</option>
+                            <option value="മുത്തശ്ശി (Grandmother)">മുത്തശ്ശി (Grandmother)</option>
+                            <option value="അമ്മാവൻ (Uncle)">അമ്മാവൻ (Uncle)</option>
+                            <option value="അമ്മായി (Aunt)">അമ്മായി (Aunt)</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>വിദ്യാർത്ഥിയുടെ പേര്</label>
+                        <input type="text" id="visitorStudentName" class="form-input" placeholder="Student Name">
+                    </div>
+                    <div class="form-group">
+                        <label>Admission No</label>
+                        <input type="text" id="visitorStudentId" class="form-input" placeholder="Adm No">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>വിസിറ്ററുടെ ഫോൺ</label>
+                        <input type="text" id="visitorPhone" class="form-input" placeholder="+91 9876543210">
+                    </div>
+                    <div class="form-group">
+                        <label>വിദ്യാർത്ഥിയുടെ ക്ലാസ്സ്</label>
+                        <input type="text" id="visitorStudentClass" class="form-input" placeholder="Class">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>ഉദ്ദേശ്യം (Purpose)</label>
+                    <select id="visitorPurpose" class="form-input">
+                        <option value="Visit">Visit (സന്ദർശനം)</option>
+                        <option value="Pick Up">Pick Up (കൊണ്ടു പോകൽ)</option>
+                        <option value="Drop Off">Drop Off (തിരിച്ച് കൊണ്ടു വരൽ)</option>
+                        <option value="Emergency">Emergency (അടിയന്തിരം)</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Photo Upload & Drag Controls -->
+            <div class="panel-section">
+                <h3 class="section-title"><i class="fas fa-camera"></i> ഫോട്ടോ</h3>
+                <div class="file-upload-wrapper">
+                    <input type="file" id="photoInput" accept="image/*" class="file-input">
+                    <div class="file-upload-label" id="photoLabel">
+                        <i class="fas fa-portrait"></i>
+                        <span>ഫോട്ടോ അപ്ലോഡ് ചെയ്യുക</span>
+                    </div>
+                </div>
+                <div class="photo-controls hidden" id="photoControls">
+                    <p class="drag-hint"><i class="fas fa-arrows-alt"></i> ഫോട്ടോ ഡ്രാഗ് ചെയ്ത് ശരിയായ സ്ഥാനത്ത് വെക്കുക</p>
+                    <div class="zoom-control">
+                        <label><i class="fas fa-search-plus"></i> Zoom</label>
+                        <input type="range" id="photoZoom" min="50" max="250" value="100" class="zoom-slider">
+                        <span id="zoomValue">100%</span>
+                    </div>
+                    <button class="reset-photo-btn" onclick="resetPhotoPosition()">
+                        <i class="fas fa-undo"></i> Reset Position
+                    </button>
+                </div>
+            </div>
+
+            <!-- Theme Color -->
+            <div class="panel-section">
+                <h3 class="section-title"><i class="fas fa-palette"></i> തീം കളർ</h3>
+                <div class="color-presets">
+                    <button class="color-preset active" style="background: #064e3b" onclick="setThemeColor('#064e3b')" title="Emerald Dark"></button>
+                    <button class="color-preset" style="background: #1e3a8a" onclick="setThemeColor('#1e3a8a')" title="Navy Blue"></button>
+                    <button class="color-preset" style="background: #7c2d12" onclick="setThemeColor('#7c2d12')" title="Warm Brown"></button>
+                    <button class="color-preset" style="background: #581c87" onclick="setThemeColor('#581c87')" title="Royal Purple"></button>
+                    <button class="color-preset" style="background: #0f172a" onclick="setThemeColor('#0f172a')" title="Slate Dark"></button>
+                    <button class="color-preset" style="background: #991b1b" onclick="setThemeColor('#991b1b')" title="Deep Red"></button>
+                    <button class="color-preset" style="background: #1e40af" onclick="setThemeColor('#1e40af')" title="Blue"></button>
+                    <button class="color-preset" style="background: #115e59" onclick="setThemeColor('#115e59')" title="Teal"></button>
+                </div>
+                <div class="form-row" style="margin-top: 12px;">
+                    <div class="form-group">
+                        <label>Primary Color</label>
+                        <input type="color" id="themeColor" value="#064e3b" class="color-input">
+                    </div>
+                    <div class="form-group">
+                        <label>Accent Color</label>
+                        <input type="color" id="accentColor" value="#34d399" class="color-input">
+                    </div>
+                </div>
+            </div>
+
+        </aside>
+
+        <!-- ──── RIGHT PANEL: Preview ──── -->
+        <section class="preview-panel">
+            <div class="preview-header">
+                <h2 class="preview-title"><i class="fas fa-eye"></i> ലൈവ് കാർഡ് പ്രിവ്യൂ</h2>
+                <div class="preview-actions">
+                    <button class="action-btn" onclick="toggleSide()" id="sideToggle">
+                        <i class="fas fa-sync-alt"></i> <span id="sideLabel">Back Side</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="canvas-wrapper">
+                <div class="canvas-container" id="canvasContainer">
+                    <canvas id="idCardCanvas" width="650" height="1000"></canvas>
+                    <!-- Invisible drag overlay for photo positioning -->
+                    <div class="photo-drag-overlay" id="photoDragOverlay"></div>
+                </div>
+            </div>
+
+            <div class="download-actions">
+                <button class="download-btn primary" onclick="downloadCard('front')">
+                    <i class="fas fa-download"></i> Front Side (PNG)
+                </button>
+                <button class="download-btn secondary" onclick="downloadCard('back')">
+                    <i class="fas fa-download"></i> Back Side (PNG)
+                </button>
+                <button class="download-btn accent" onclick="downloadBothSides()">
+                    <i class="fas fa-file-image"></i> Both Sides
+                </button>
+            </div>
+        </section>
+    </main>
+
+    <!-- Hidden QR container -->
+    <div id="qrContainer" style="position:absolute;left:-9999px;top:-9999px;"></div>
+
+    <script src="app.js"></script>
+</body>
+</html>
