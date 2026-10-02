@@ -6,7 +6,7 @@
     <title>College ID Card Designer</title>
     <meta name="description" content="ID Card Design & Management System for KKHM Islamic & Arts College and AL-GAITH Islamic & Arts College for Girls">
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Noto+Sans+Malayalam:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Noto+Sans+Arabic:wght@400;600;700;800&family=Inter:wght@300;400;500;600;700;800;900&family=Noto+Sans+Malayalam:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
     <link rel="stylesheet" href="style.css">
@@ -26,11 +26,11 @@
         </div>
         <div class="nav-actions">
             <div class="institution-switcher" id="institutionSwitcher">
-                <button class="inst-btn active" data-inst="kkhm" onclick="switchInstitution('kkhm')">
+                <button class="inst-btn" data-inst="kkhm" onclick="switchInstitution('kkhm')">
                     <span class="inst-dot kkhm-dot"></span>
                     KKHM
                 </button>
-                <button class="inst-btn" data-inst="algaith" onclick="switchInstitution('algaith')">
+                <button class="inst-btn active" data-inst="algaith" onclick="switchInstitution('algaith')">
                     <span class="inst-dot algaith-dot"></span>
                     AL-GAITH
                 </button>
@@ -47,7 +47,7 @@
             <div class="panel-section">
                 <h3 class="section-title"><i class="fas fa-layer-group"></i> കാർഡ് തരം തിരഞ്ഞെടുക്കുക</h3>
                 <div class="card-type-grid">
-                    <button class="card-type-btn active" data-type="student" onclick="switchCardType('student')">
+                    <button class="card-type-btn" data-type="student" onclick="switchCardType('student')">
                         <i class="fas fa-user-graduate"></i>
                         <span>Student</span>
                     </button>
@@ -55,7 +55,7 @@
                         <i class="fas fa-chalkboard-teacher"></i>
                         <span>Staff</span>
                     </button>
-                    <button class="card-type-btn" data-type="visitor" onclick="switchCardType('visitor')">
+                    <button class="card-type-btn active" data-type="visitor" onclick="switchCardType('visitor')">
                         <i class="fas fa-user-friends"></i>
                         <span>Visitor</span>
                     </button>
@@ -66,8 +66,12 @@
             <div class="panel-section">
                 <h3 class="section-title"><i class="fas fa-university"></i> സ്ഥാപന വിവരങ്ങൾ</h3>
                 <div class="form-group">
-                    <label>സ്ഥാപനത്തിന്റെ പേര്</label>
-                    <input type="text" id="instName" class="form-input" readonly>
+                    <label>അറബിക് പേര് (Arabic Title)</label>
+                    <input type="text" id="instArabicName" class="form-input text-right" dir="rtl">
+                </div>
+                <div class="form-group">
+                    <label>സ്ഥാപനത്തിന്റെ പേര് (English)</label>
+                    <input type="text" id="instName" class="form-input">
                 </div>
                 <div class="form-group">
                     <label>സ്ഥാപന വിലാസം</label>
@@ -84,7 +88,7 @@
                     </div>
                 </div>
                 <div class="form-group">
-                    <label>ലോഗോ അപ്ലോഡ്</label>
+                    <label>ലോഗോ അപ്ലോഡ് (ഓപ്ഷണൽ)</label>
                     <div class="file-upload-wrapper">
                         <input type="file" id="logoInput" accept="image/*" class="file-input">
                         <div class="file-upload-label" id="logoLabel">
@@ -96,7 +100,7 @@
             </div>
 
             <!-- Person Details (Student/Staff) -->
-            <div class="panel-section" id="personSection">
+            <div class="panel-section hidden" id="personSection">
                 <h3 class="section-title"><i class="fas fa-user-edit"></i> <span id="personSectionTitle">വിദ്യാർത്ഥി വിവരങ്ങൾ</span></h3>
                 <div class="form-row">
                     <div class="form-group">
@@ -142,62 +146,55 @@
                 </div>
             </div>
 
-            <!-- Visitor Section -->
-            <div class="panel-section hidden" id="visitorSection">
-                <h3 class="section-title"><i class="fas fa-user-shield"></i> വിസിറ്റർ വിവരങ്ങൾ</h3>
+            <!-- Visitor Section: Student Details (Front) & Authorized Family (Back) -->
+            <div class="panel-section" id="visitorSection">
+                <h3 class="section-title"><i class="fas fa-user-shield"></i> വിസിറ്റർ കാർഡ് — വിദ്യാർത്ഥി വിവരങ്ങൾ (Front)</h3>
                 <div class="visitor-notice">
-                    <i class="fas fa-exclamation-triangle"></i>
-                    <p>രക്ഷിതാവും വിദ്യാർത്ഥിയും മുൻകൂട്ടി രജിസ്റ്റർ ചെയ്ത <strong>രക്തബന്ധമുള്ള വ്യക്തികളെ</strong> മാത്രമേ ഉൾപ്പെടുത്താൻ കഴിയൂ. ഓഫീസ് മുഖാന്തരം മാത്രം ആഡ് ചെയ്യാവുന്നതാണ്.</p>
+                    <i class="fas fa-id-card"></i>
+                    <p>ഫ്രണ്ട് സൈഡിൽ <strong>വിദ്യാർത്ഥിയുടെ വിവരങ്ങളും ഫോട്ടോയും</strong> കാണിക്കും. ബാക്ക് സൈഡിൽ സന്ദർശിക്കാൻ അനുമതിയുള്ള <strong>കുടുംബാംഗങ്ങളുടെ ഫോട്ടോകളും വിവരങ്ങളും</strong> കാണിക്കും.</p>
                 </div>
                 <div class="form-row">
                     <div class="form-group">
-                        <label>വിസിറ്ററുടെ പേര്</label>
-                        <input type="text" id="visitorName" class="form-input" placeholder="പേര് നൽകുക">
-                    </div>
-                    <div class="form-group">
-                        <label>ബന്ധം (Relation)</label>
-                        <select id="visitorRelation" class="form-input">
-                            <option value="">തിരഞ്ഞെടുക്കുക</option>
-                            <option value="പിതാവ് (Father)">പിതാവ് (Father)</option>
-                            <option value="മാതാവ് (Mother)">മാതാവ് (Mother)</option>
-                            <option value="സഹോദരൻ (Brother)">സഹോദരൻ (Brother)</option>
-                            <option value="സഹോദരി (Sister)">സഹോദരി (Sister)</option>
-                            <option value="ഭാര്യ / ഭർത്താവ്">ഭാര്യ / ഭർത്താവ് (Spouse)</option>
-                            <option value="മുത്തച്ഛൻ (Grandfather)">മുത്തച്ഛൻ (Grandfather)</option>
-                            <option value="മുത്തശ്ശി (Grandmother)">മുത്തശ്ശി (Grandmother)</option>
-                            <option value="അമ്മാവൻ (Uncle)">അമ്മാവൻ (Uncle)</option>
-                            <option value="അമ്മായി (Aunt)">അമ്മായി (Aunt)</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>വിദ്യാർത്ഥിയുടെ പേര്</label>
-                        <input type="text" id="visitorStudentName" class="form-input" placeholder="Student Name">
+                        <label>വിദ്യാർത്ഥിയുടെ പേര് (Student Name)</label>
+                        <input type="text" id="visitorStudentName" class="form-input font-bold" placeholder="e.g. AFRIN FATHIMA" value="AFRIN FATHIMA">
                     </div>
                     <div class="form-group">
                         <label>Admission No</label>
-                        <input type="text" id="visitorStudentId" class="form-input" placeholder="Adm No">
-                    </div>
-                </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>വിസിറ്ററുടെ ഫോൺ</label>
-                        <input type="text" id="visitorPhone" class="form-input" placeholder="+91 9876543210">
-                    </div>
-                    <div class="form-group">
-                        <label>വിദ്യാർത്ഥിയുടെ ക്ലാസ്സ്</label>
-                        <input type="text" id="visitorStudentClass" class="form-input" placeholder="Class">
+                        <input type="text" id="visitorStudentId" class="form-input text-red-600 font-bold" placeholder="e.g. 747" value="747">
                     </div>
                 </div>
                 <div class="form-group">
-                    <label>ഉദ്ദേശ്യം (Purpose)</label>
-                    <select id="visitorPurpose" class="form-input">
-                        <option value="Visit">Visit (സന്ദർശനം)</option>
-                        <option value="Pick Up">Pick Up (കൊണ്ടു പോകൽ)</option>
-                        <option value="Drop Off">Drop Off (തിരിച്ച് കൊണ്ടു വരൽ)</option>
-                        <option value="Emergency">Emergency (അടിയന്തിരം)</option>
-                    </select>
+                    <label>വിലാസം ലൈൻ 1 (House / Locality)</label>
+                    <input type="text" id="visitorStudentAddr1" class="form-input" placeholder="e.g. KODAKKATTU H, NERIAMANGALAM" value="KODAKKATTU H, NERIAMANGALAM">
+                </div>
+                <div class="form-group">
+                    <label>വിലാസം ലൈൻ 2 (PO, Dist, Pin)</label>
+                    <input type="text" id="visitorStudentAddr2" class="form-input" placeholder="e.g. PO, ERANAKULAM 686693" value="PO, ERANAKULAM 686693">
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Contact Numbers</label>
+                        <input type="text" id="visitorStudentContact" class="form-input" placeholder="e.g. 9562937331, 7561085134" value="9562937331, 7561085134">
+                    </div>
+                    <div class="form-group">
+                        <label>കോഴ്സ് കാലയളവ് (Duration)</label>
+                        <input type="text" id="visitorDuration" class="form-input" placeholder="e.g. 2026-2032" value="2026-2032">
+                    </div>
+                </div>
+
+                <!-- Family Members for Back Side -->
+                <div class="family-section-divider">
+                    <div class="family-section-header">
+                        <h4><i class="fas fa-users"></i> അംഗീകൃത കുടുംബാംഗങ്ങൾ (Authorized Family - Back Side)</h4>
+                        <button type="button" class="btn-sm-add" onclick="addFamilyMember()">
+                            <i class="fas fa-plus"></i> Add Member
+                        </button>
+                    </div>
+                    <p class="family-section-desc">സന്ദർശിക്കാൻ അനുമതിയുള്ള കുടുംബാംഗങ്ങളുടെ ഫോട്ടോകളും വിവരങ്ങളും ഇവിടെ നൽകുക (പരമാവധി 4 പേർ).</p>
+                    
+                    <div class="family-members-list" id="familyMembersList">
+                        <!-- Populated dynamically by app.js -->
+                    </div>
                 </div>
             </div>
 

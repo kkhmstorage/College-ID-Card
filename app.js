@@ -1,37 +1,40 @@
 /* ═══════════════════════════════════════════════
    COLLEGE ID CARD DESIGNER - APPLICATION LOGIC
    Canvas-based ID Card with Drag Photo, QR Code,
-   Institution Switching, Multiple Card Types
+   Institution Switching, Visitors' Identity Card,
+   Authorized Family Grid & Multiple Card Types
    ═══════════════════════════════════════════════ */
 
 // ──── INSTITUTION DATA ────
 const INSTITUTIONS = {
+    algaith: {
+        name: "AL GAITH ISLAMIC & ARTS COLLEGE FOR GIRLS",
+        arabicName: "كلية الغيث للآداب والعلوم الإسلامية - للبنات",
+        shortName: "AL-GAITH",
+        address: "P.O Karthala, Malappuram, Pin: 679571",
+        phone: "0494 2608283, 8590658550",
+        website: "https://kkhmstorage.github.io/markaz-wafy-college/",
+        themeColor: "#173f8a",
+        accentColor: "#ffd200",
+        tagline: "Empowering Women Through Knowledge"
+    },
     kkhm: {
         name: "KKHM ISLAMIC & ARTS COLLEGE",
+        arabicName: "كلية كي كي حسن مسليار الإسلامية والآداب",
         shortName: "KKHM",
-        address: "Markaz Campus, Athavanad",
-        phone: "+91 4933 123456",
+        address: "P.O Karthala, Malappuram, Pin: 679571",
+        phone: "0494 2608283, 8590658550",
         website: "https://kkhmstorage.github.io/markaz-wafy-college/",
-        themeColor: "#064e3b",
-        accentColor: "#34d399",
+        themeColor: "#173f8a",
+        accentColor: "#ffd200",
         tagline: "Enlightening Minds, Building Futures"
-    },
-    algaith: {
-        name: "AL-GAITH ISLAMIC & ARTS COLLEGE FOR GIRLS",
-        shortName: "AL-GAITH",
-        address: "Markaz Campus, Athavanad",
-        phone: "+91 4933 654321",
-        website: "https://kkhmstorage.github.io/markaz-wafy-college/",
-        themeColor: "#7c2d12",
-        accentColor: "#fb923c",
-        tagline: "Empowering Women Through Knowledge"
     }
 };
 
 // ──── STATE MANAGEMENT ────
 let state = {
-    currentInstitution: 'kkhm',
-    currentCardType: 'student',   // student | staff | visitor
+    currentInstitution: 'algaith',
+    currentCardType: 'visitor',   // student | staff | visitor
     showingSide: 'front',          // front | back
     userPhoto: null,
     logoImage: null,
@@ -45,7 +48,28 @@ let state = {
     dragStartX: 0,
     dragStartY: 0,
     dragInitOffsetX: 0,
-    dragInitOffsetY: 0
+    dragInitOffsetY: 0,
+    // Family members for Visitor back side
+    familyMembers: [
+        {
+            name: "M ABOOBACKER",
+            relation: "FATHER",
+            photo: null,
+            photoSrc: "assets/father_sample.jpg"
+        },
+        {
+            name: "FARSEENA",
+            relation: "SISTER",
+            photo: null,
+            photoSrc: "assets/sister_sample.jpg"
+        },
+        {
+            name: "MUMTHAZ",
+            relation: "MOTHER",
+            photo: null,
+            photoSrc: "assets/mother_sample.jpg"
+        }
+    ]
 };
 
 // ──── DOM REFERENCES ────
@@ -55,12 +79,13 @@ const canvasContainer = document.getElementById('canvasContainer');
 const photoDragOverlay = document.getElementById('photoDragOverlay');
 
 // Institution inputs
+const instArabicNameInput = document.getElementById('instArabicName');
 const instNameInput = document.getElementById('instName');
 const instAddressInput = document.getElementById('instAddress');
 const instPhoneInput = document.getElementById('instPhone');
 const instWebsiteInput = document.getElementById('instWebsite');
 
-// Person inputs
+// Person inputs (Student/Staff)
 const personNameInput = document.getElementById('personName');
 const personIdInput = document.getElementById('personId');
 const personRoleInput = document.getElementById('personRole');
@@ -71,14 +96,13 @@ const personAddressInput = document.getElementById('personAddress');
 const staffDeptInput = document.getElementById('staffDept');
 const staffJoinDateInput = document.getElementById('staffJoinDate');
 
-// Visitor inputs
-const visitorNameInput = document.getElementById('visitorName');
-const visitorRelationInput = document.getElementById('visitorRelation');
+// Visitor inputs (Front side)
 const visitorStudentNameInput = document.getElementById('visitorStudentName');
 const visitorStudentIdInput = document.getElementById('visitorStudentId');
-const visitorPhoneInput = document.getElementById('visitorPhone');
-const visitorStudentClassInput = document.getElementById('visitorStudentClass');
-const visitorPurposeInput = document.getElementById('visitorPurpose');
+const visitorStudentAddr1Input = document.getElementById('visitorStudentAddr1');
+const visitorStudentAddr2Input = document.getElementById('visitorStudentAddr2');
+const visitorStudentContactInput = document.getElementById('visitorStudentContact');
+const visitorDurationInput = document.getElementById('visitorDuration');
 
 // File inputs
 const photoInput = document.getElementById('photoInput');
@@ -99,23 +123,51 @@ const zoomValueDisplay = document.getElementById('zoomValue');
 // ═══════════════════════════════════════════════
 
 function init() {
-    switchInstitution('kkhm');
-    switchCardType('student');
+    switchInstitution('algaith');
+    switchCardType('visitor');
     setupEventListeners();
     setupDragHandlers();
+    renderFamilyMembersList();
+    loadSampleImages();
     drawCard();
 }
 
+function loadSampleImages() {
+    // 1. Student Sample Photo
+    const studentImg = new Image();
+    studentImg.onload = () => {
+        state.userPhoto = studentImg;
+        if (photoControls) photoControls.classList.remove('hidden');
+        if (photoDragOverlay) photoDragOverlay.classList.add('active');
+        updateDragOverlayPosition();
+        drawCard();
+    };
+    studentImg.src = 'assets/student_sample.jpg';
+
+    // 2. Family Members Sample Photos
+    state.familyMembers.forEach((member, idx) => {
+        if (member.photoSrc) {
+            const fImg = new Image();
+            fImg.onload = () => {
+                member.photo = fImg;
+                renderFamilyMembersList();
+                drawCard();
+            };
+            fImg.src = member.photoSrc;
+        }
+    });
+}
+
 function setupEventListeners() {
-    // All text inputs trigger redraw
+    // Text inputs trigger redraw
     const allInputs = [
-        instNameInput, instAddressInput, instPhoneInput, instWebsiteInput,
+        instArabicNameInput, instNameInput, instAddressInput, instPhoneInput, instWebsiteInput,
         personNameInput, personIdInput, personRoleInput, personBloodInput,
         personPhoneInput, personDobInput, personAddressInput,
         staffDeptInput, staffJoinDateInput,
-        visitorNameInput, visitorRelationInput, visitorStudentNameInput,
-        visitorStudentIdInput, visitorPhoneInput, visitorStudentClassInput,
-        visitorPurposeInput,
+        visitorStudentNameInput, visitorStudentIdInput,
+        visitorStudentAddr1Input, visitorStudentAddr2Input,
+        visitorStudentContactInput, visitorDurationInput,
         themeColorInput, accentColorInput
     ];
 
@@ -129,23 +181,27 @@ function setupEventListeners() {
     });
 
     // Photo upload
-    photoInput.addEventListener('change', handlePhotoUpload);
+    if (photoInput) photoInput.addEventListener('change', handlePhotoUpload);
     
     // Logo upload
-    logoInput.addEventListener('change', handleLogoUpload);
+    if (logoInput) logoInput.addEventListener('change', handleLogoUpload);
 
     // Zoom slider
-    photoZoomSlider.addEventListener('input', (e) => {
-        state.photoZoom = parseInt(e.target.value);
-        zoomValueDisplay.textContent = state.photoZoom + '%';
-        drawCard();
-    });
+    if (photoZoomSlider) {
+        photoZoomSlider.addEventListener('input', (e) => {
+            state.photoZoom = parseInt(e.target.value);
+            if (zoomValueDisplay) zoomValueDisplay.textContent = state.photoZoom + '%';
+            drawCard();
+        });
+    }
 
     // Theme color change also updates preset highlight
-    themeColorInput.addEventListener('input', () => {
-        document.querySelectorAll('.color-preset').forEach(b => b.classList.remove('active'));
-        drawCard();
-    });
+    if (themeColorInput) {
+        themeColorInput.addEventListener('input', () => {
+            document.querySelectorAll('.color-preset').forEach(b => b.classList.remove('active'));
+            drawCard();
+        });
+    }
 }
 
 
@@ -163,14 +219,15 @@ function switchInstitution(instKey) {
     });
 
     // Fill institution fields
-    instNameInput.value = inst.name;
-    instAddressInput.value = inst.address;
-    instPhoneInput.value = inst.phone;
-    instWebsiteInput.value = inst.website;
+    if (instArabicNameInput) instArabicNameInput.value = inst.arabicName;
+    if (instNameInput) instNameInput.value = inst.name;
+    if (instAddressInput) instAddressInput.value = inst.address;
+    if (instPhoneInput) instPhoneInput.value = inst.phone;
+    if (instWebsiteInput) instWebsiteInput.value = inst.website;
 
     // Update theme colors
-    themeColorInput.value = inst.themeColor;
-    accentColorInput.value = inst.accentColor;
+    if (themeColorInput) themeColorInput.value = inst.themeColor;
+    if (accentColorInput) accentColorInput.value = inst.accentColor;
     setThemeColor(inst.themeColor);
 
     generateQR();
@@ -198,38 +255,165 @@ function switchCardType(type) {
     const addressGroup = document.getElementById('addressGroup');
 
     // Reset visibility
-    personSection.classList.remove('hidden');
-    visitorSection.classList.add('hidden');
-    departmentGroup.classList.add('hidden');
-    joinDateGroup.classList.add('hidden');
-    dobGroup.classList.remove('hidden');
-    addressGroup.classList.remove('hidden');
+    if (personSection) personSection.classList.remove('hidden');
+    if (visitorSection) visitorSection.classList.add('hidden');
+    if (departmentGroup) departmentGroup.classList.add('hidden');
+    if (joinDateGroup) joinDateGroup.classList.add('hidden');
+    if (dobGroup) dobGroup.classList.remove('hidden');
+    if (addressGroup) addressGroup.classList.remove('hidden');
 
     if (type === 'student') {
-        document.getElementById('personSectionTitle').textContent = 'വിദ്യാർത്ഥി വിവരങ്ങൾ';
+        const titleEl = document.getElementById('personSectionTitle');
+        if (titleEl) titleEl.textContent = 'വിദ്യാർത്ഥി വിവരങ്ങൾ';
         document.getElementById('nameLabel').textContent = 'പേര്';
         document.getElementById('idLabel').textContent = 'Admission No';
         document.getElementById('roleLabel').textContent = 'ക്ലാസ്സ് / Course';
     } else if (type === 'staff') {
-        document.getElementById('personSectionTitle').textContent = 'സ്റ്റാഫ് വിവരങ്ങൾ';
+        const titleEl = document.getElementById('personSectionTitle');
+        if (titleEl) titleEl.textContent = 'സ്റ്റാഫ് വിവരങ്ങൾ';
         document.getElementById('nameLabel').textContent = 'പേര്';
         document.getElementById('idLabel').textContent = 'Staff ID';
         document.getElementById('roleLabel').textContent = 'Designation';
-        departmentGroup.classList.remove('hidden');
-        joinDateGroup.classList.remove('hidden');
-        dobGroup.classList.add('hidden');
+        if (departmentGroup) departmentGroup.classList.remove('hidden');
+        if (joinDateGroup) joinDateGroup.classList.remove('hidden');
+        if (dobGroup) dobGroup.classList.add('hidden');
     } else if (type === 'visitor') {
-        personSection.classList.add('hidden');
-        visitorSection.classList.remove('hidden');
+        if (personSection) personSection.classList.add('hidden');
+        if (visitorSection) visitorSection.classList.remove('hidden');
     }
 
+    updateDragOverlayPosition();
     generateQR();
     drawCard();
 }
 
 
 // ═══════════════════════════════════════════════
-//  PHOTO HANDLING & DRAG
+//  FAMILY MEMBERS MANAGEMENT (FOR VISITOR BACK)
+// ═══════════════════════════════════════════════
+
+function renderFamilyMembersList() {
+    const container = document.getElementById('familyMembersList');
+    if (!container) return;
+
+    container.innerHTML = '';
+
+    state.familyMembers.forEach((member, index) => {
+        const card = document.createElement('div');
+        card.className = 'family-member-card';
+
+        const thumbSrc = member.photo ? member.photo.src : (member.photoSrc || '');
+        const thumbHtml = thumbSrc
+            ? `<img src="${thumbSrc}" class="member-thumb-img" alt="${member.name}">`
+            : `<div class="member-thumb-placeholder"><i class="fas fa-user"></i></div>`;
+
+        card.innerHTML = `
+            <div class="member-card-top">
+                <div class="member-card-title">
+                    <span class="badge-num">#${index + 1}</span>
+                    <span>${member.relation || 'Member'}</span>
+                </div>
+                ${state.familyMembers.length > 1 ? `
+                    <button type="button" class="btn-remove-member" onclick="removeFamilyMember(${index})" title="Delete member">
+                        <i class="fas fa-trash-alt"></i>
+                    </button>
+                ` : ''}
+            </div>
+            <div class="member-card-body">
+                <div class="member-photo-col">
+                    <div class="member-thumb-box" id="memberThumb_${index}">
+                        ${thumbHtml}
+                    </div>
+                    <label class="btn-thumb-upload">
+                        <i class="fas fa-camera"></i> Photo
+                        <input type="file" accept="image/*" style="display:none" onchange="handleMemberPhotoUpload(${index}, event)">
+                    </label>
+                </div>
+                <div class="member-fields-col">
+                    <div class="form-group">
+                        <label>പേര് (Name)</label>
+                        <input type="text" class="form-input font-bold" value="${member.name}" placeholder="e.g. M ABOOBACKER" oninput="updateMemberName(${index}, this.value)">
+                    </div>
+                    <div class="form-group">
+                        <label>ബന്ധം (Relation)</label>
+                        <select class="form-input" onchange="updateMemberRelation(${index}, this.value)">
+                            <option value="FATHER" ${member.relation === 'FATHER' ? 'selected' : ''}>FATHER (പിതാവ്)</option>
+                            <option value="MOTHER" ${member.relation === 'MOTHER' ? 'selected' : ''}>MOTHER (മാതാവ്)</option>
+                            <option value="SISTER" ${member.relation === 'SISTER' ? 'selected' : ''}>SISTER (സഹോദരി)</option>
+                            <option value="BROTHER" ${member.relation === 'BROTHER' ? 'selected' : ''}>BROTHER (സഹോദരൻ)</option>
+                            <option value="GUARDIAN" ${member.relation === 'GUARDIAN' ? 'selected' : ''}>GUARDIAN (രക്ഷിതാവ്)</option>
+                            <option value="GRANDFATHER" ${member.relation === 'GRANDFATHER' ? 'selected' : ''}>GRANDFATHER (മുത്തച്ഛൻ)</option>
+                            <option value="GRANDMOTHER" ${member.relation === 'GRANDMOTHER' ? 'selected' : ''}>GRANDMOTHER (മുത്തശ്ശി)</option>
+                            <option value="UNCLE" ${member.relation === 'UNCLE' ? 'selected' : ''}>UNCLE (അമ്മാവൻ)</option>
+                            <option value="AUNT" ${member.relation === 'AUNT' ? 'selected' : ''}>AUNT (അമ്മായി)</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        container.appendChild(card);
+    });
+}
+
+function addFamilyMember() {
+    if (state.familyMembers.length >= 4) {
+        alert('പരമാവധി 4 അംഗീകൃത കുടുംബാംഗങ്ങളെ മാത്രമേ ചേർക്കാൻ കഴിയൂ.');
+        return;
+    }
+    state.familyMembers.push({
+        name: 'NEW MEMBER',
+        relation: 'BROTHER',
+        photo: null,
+        photoSrc: ''
+    });
+    renderFamilyMembersList();
+    drawCard();
+}
+
+function removeFamilyMember(index) {
+    if (state.familyMembers.length <= 1) return;
+    state.familyMembers.splice(index, 1);
+    renderFamilyMembersList();
+    drawCard();
+}
+
+function updateMemberName(index, val) {
+    if (state.familyMembers[index]) {
+        state.familyMembers[index].name = val.toUpperCase();
+        drawCard();
+    }
+}
+
+function updateMemberRelation(index, val) {
+    if (state.familyMembers[index]) {
+        state.familyMembers[index].relation = val.toUpperCase();
+        renderFamilyMembersList();
+        drawCard();
+    }
+}
+
+function handleMemberPhotoUpload(index, event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const img = new Image();
+        img.onload = function() {
+            state.familyMembers[index].photo = img;
+            state.familyMembers[index].photoSrc = e.target.result;
+            renderFamilyMembersList();
+            drawCard();
+        };
+        img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+}
+
+
+// ═══════════════════════════════════════════════
+//  STUDENT PHOTO HANDLING & DRAG
 // ═══════════════════════════════════════════════
 
 function handlePhotoUpload(e) {
@@ -244,10 +428,10 @@ function handlePhotoUpload(e) {
             state.photoOffsetX = 0;
             state.photoOffsetY = 0;
             state.photoZoom = 100;
-            photoZoomSlider.value = 100;
-            zoomValueDisplay.textContent = '100%';
-            photoControls.classList.remove('hidden');
-            photoDragOverlay.classList.add('active');
+            if (photoZoomSlider) photoZoomSlider.value = 100;
+            if (zoomValueDisplay) zoomValueDisplay.textContent = '100%';
+            if (photoControls) photoControls.classList.remove('hidden');
+            if (photoDragOverlay) photoDragOverlay.classList.add('active');
             updateDragOverlayPosition();
             drawCard();
         };
@@ -255,8 +439,10 @@ function handlePhotoUpload(e) {
     };
     reader.readAsDataURL(file);
 
-    // Update label
-    document.getElementById('photoLabel').innerHTML = '<i class="fas fa-check-circle" style="color:#34d399"></i><span>ഫോട്ടോ ലോഡ് ചെയ്തു ✓</span>';
+    const label = document.getElementById('photoLabel');
+    if (label) {
+        label.innerHTML = '<i class="fas fa-check-circle" style="color:#34d399"></i><span>ഫോട്ടോ ലോഡ് ചെയ്തു ✓</span>';
+    }
 }
 
 function handleLogoUpload(e) {
@@ -274,35 +460,55 @@ function handleLogoUpload(e) {
     };
     reader.readAsDataURL(file);
 
-    document.getElementById('logoLabel').innerHTML = '<i class="fas fa-check-circle" style="color:#34d399"></i><span>ലോഗോ ലോഡ് ചെയ്തു ✓</span>';
+    const label = document.getElementById('logoLabel');
+    if (label) {
+        label.innerHTML = '<i class="fas fa-check-circle" style="color:#34d399"></i><span>ലോഗോ ലോഡ് ചെയ്തു ✓</span>';
+    }
 }
 
 function resetPhotoPosition() {
     state.photoOffsetX = 0;
     state.photoOffsetY = 0;
     state.photoZoom = 100;
-    photoZoomSlider.value = 100;
-    zoomValueDisplay.textContent = '100%';
+    if (photoZoomSlider) photoZoomSlider.value = 100;
+    if (zoomValueDisplay) zoomValueDisplay.textContent = '100%';
     drawCard();
 }
 
-// ──── Drag Overlay Setup ────
 function updateDragOverlayPosition() {
-    // Calculate the scale ratio between displayed canvas and actual canvas
+    if (!state.userPhoto || state.showingSide !== 'front') {
+        photoDragOverlay.classList.remove('active');
+        return;
+    }
+
     const canvasRect = canvas.getBoundingClientRect();
     const scaleX = canvasRect.width / canvas.width;
     const scaleY = canvasRect.height / canvas.height;
 
-    // Photo circle position on canvas
-    const centerX = 325;
-    const centerY = 340;
-    const radius = 120;
+    if (state.currentCardType === 'visitor') {
+        const photoW = 220;
+        const photoH = 260;
+        const photoX = (canvas.width - photoW) / 2;
+        const photoY = 225;
 
-    photoDragOverlay.style.width = (radius * 2 * scaleX) + 'px';
-    photoDragOverlay.style.height = (radius * 2 * scaleY) + 'px';
-    photoDragOverlay.style.left = ((centerX - radius) * scaleX) + 'px';
-    photoDragOverlay.style.top = ((centerY - radius) * scaleY) + 'px';
-    photoDragOverlay.style.borderRadius = '50%';
+        photoDragOverlay.style.width = (photoW * scaleX) + 'px';
+        photoDragOverlay.style.height = (photoH * scaleY) + 'px';
+        photoDragOverlay.style.left = (photoX * scaleX) + 'px';
+        photoDragOverlay.style.top = (photoY * scaleY) + 'px';
+        photoDragOverlay.style.borderRadius = (22 * scaleX) + 'px';
+        photoDragOverlay.classList.add('active');
+    } else {
+        const centerX = canvas.width / 2;
+        const centerY = 340;
+        const radius = 120;
+
+        photoDragOverlay.style.width = (radius * 2 * scaleX) + 'px';
+        photoDragOverlay.style.height = (radius * 2 * scaleY) + 'px';
+        photoDragOverlay.style.left = ((centerX - radius) * scaleX) + 'px';
+        photoDragOverlay.style.top = ((centerY - radius) * scaleY) + 'px';
+        photoDragOverlay.style.borderRadius = '50%';
+        photoDragOverlay.classList.add('active');
+    }
 }
 
 function setupDragHandlers() {
@@ -316,7 +522,7 @@ function setupDragHandlers() {
     document.addEventListener('touchmove', onDragTouch, { passive: false });
     document.addEventListener('touchend', endDrag);
 
-    // Update overlay on resize
+    // Update overlay on window resize
     window.addEventListener('resize', () => {
         if (state.userPhoto) {
             updateDragOverlayPosition();
@@ -380,13 +586,16 @@ function endDrag() {
 
 function generateQR() {
     const qrContainer = document.getElementById('qrContainer');
+    if (!qrContainer) return;
     qrContainer.innerHTML = '';
 
     let qrData = '';
     const inst = INSTITUTIONS[state.currentInstitution];
 
     if (state.currentCardType === 'visitor') {
-        qrData = `VISITOR CARD\n${inst.name}\nVisitor: ${visitorNameInput.value}\nRelation: ${visitorRelationInput.value}\nStudent: ${visitorStudentNameInput.value}\nAdm No: ${visitorStudentIdInput.value}\nPurpose: ${visitorPurposeInput.value}\nPhone: ${visitorPhoneInput.value}`;
+        const studentName = visitorStudentNameInput ? visitorStudentNameInput.value : '';
+        const admNo = visitorStudentIdInput ? visitorStudentIdInput.value : '';
+        qrData = `VISITOR PASS - AUTHORIZED FAMILY\n${inst.name}\nStudent: ${studentName}\nAdm No: ${admNo}\nContact: ${visitorStudentContactInput.value}\nDuration: ${visitorDurationInput.value}`;
     } else {
         qrData = `${state.currentCardType.toUpperCase()} ID CARD\n${inst.name}\nName: ${personNameInput.value}\nID: ${personIdInput.value}\n${state.currentCardType === 'student' ? 'Class' : 'Designation'}: ${personRoleInput.value}\nPhone: ${personPhoneInput.value}\nWebsite: ${instWebsiteInput.value}`;
     }
@@ -403,7 +612,6 @@ function generateQR() {
             correctLevel: QRCode.CorrectLevel.M
         });
 
-        // Wait for QR to render then capture
         setTimeout(() => {
             const qrCanvas = qrContainer.querySelector('canvas');
             if (qrCanvas) {
@@ -426,12 +634,9 @@ function generateQR() {
 // ═══════════════════════════════════════════════
 
 function setThemeColor(color) {
-    themeColorInput.value = color;
+    if (themeColorInput) themeColorInput.value = color;
 
-    // Update active preset
     document.querySelectorAll('.color-preset').forEach(btn => {
-        const btnColor = btn.style.background || btn.style.backgroundColor;
-        // Compare by reading computed hex
         btn.classList.toggle('active', rgbToHex(btn) === color.toLowerCase());
     });
 
@@ -439,8 +644,8 @@ function setThemeColor(color) {
 }
 
 function rgbToHex(element) {
-    // Extract the color from style attribute
     const style = element.getAttribute('style');
+    if (!style) return '';
     const match = style.match(/background:\s*(#[0-9a-fA-F]{6})/);
     return match ? match[1].toLowerCase() : '';
 }
@@ -452,13 +657,16 @@ function rgbToHex(element) {
 
 function toggleSide() {
     state.showingSide = state.showingSide === 'front' ? 'back' : 'front';
-    document.getElementById('sideLabel').textContent = state.showingSide === 'front' ? 'Back Side' : 'Front Side';
+    const sideLabel = document.getElementById('sideLabel');
+    if (sideLabel) {
+        sideLabel.textContent = state.showingSide === 'front' ? 'Back Side' : 'Front Side';
+    }
     
-    // Show/hide drag overlay based on side
     if (state.showingSide === 'back') {
         photoDragOverlay.classList.remove('active');
     } else if (state.userPhoto) {
         photoDragOverlay.classList.add('active');
+        updateDragOverlayPosition();
     }
     
     drawCard();
@@ -470,13 +678,20 @@ function toggleSide() {
 // ═══════════════════════════════════════════════
 
 function drawCard() {
-    if (state.showingSide === 'front') {
-        drawFrontSide();
+    if (state.currentCardType === 'visitor') {
+        if (state.showingSide === 'front') {
+            drawVisitorFrontSide();
+        } else {
+            drawVisitorBackSide();
+        }
     } else {
-        drawBackSide();
+        if (state.showingSide === 'front') {
+            drawFrontSide();
+        } else {
+            drawBackSide();
+        }
     }
     
-    // Update drag overlay position
     if (state.userPhoto && state.showingSide === 'front') {
         updateDragOverlayPosition();
     }
@@ -497,17 +712,6 @@ function roundRect(x, y, w, h, r) {
     ctx.closePath();
 }
 
-// ──── HELPER: Lighten Color ────
-function lightenColor(hex, percent) {
-    const num = parseInt(hex.replace('#', ''), 16);
-    const amt = Math.round(2.55 * percent);
-    const R = Math.min(255, (num >> 16) + amt);
-    const G = Math.min(255, ((num >> 8) & 0x00FF) + amt);
-    const B = Math.min(255, (num & 0x0000FF) + amt);
-    return `#${(1 << 24 | R << 16 | G << 8 | B).toString(16).slice(1)}`;
-}
-
-// ──── HELPER: Darken Color ────
 function darkenColor(hex, percent) {
     const num = parseInt(hex.replace('#', ''), 16);
     const amt = Math.round(2.55 * percent);
@@ -517,14 +721,13 @@ function darkenColor(hex, percent) {
     return `#${(1 << 24 | R << 16 | G << 8 | B).toString(16).slice(1)}`;
 }
 
-// ──── HELPER: Wrap Text ────
 function wrapText(text, maxWidth) {
-    const words = text.split('');
+    const words = text.split(' ');
     let lines = [];
     let currentLine = '';
 
     for (let i = 0; i < words.length; i++) {
-        const testLine = currentLine + words[i];
+        const testLine = currentLine + (currentLine ? ' ' : '') + words[i];
         const metrics = ctx.measureText(testLine);
         if (metrics.width > maxWidth && currentLine.length > 0) {
             lines.push(currentLine);
@@ -537,45 +740,314 @@ function wrapText(text, maxWidth) {
     return lines;
 }
 
-// ──── Get Card Type Label ────
 function getCardTypeLabel() {
     switch(state.currentCardType) {
         case 'student': return 'STUDENT IDENTITY CARD';
         case 'staff': return 'STAFF IDENTITY CARD';
-        case 'visitor': return 'VISITOR PASS';
+        case 'visitor': return "VISITORS' IDENTITY CARD";
         default: return 'IDENTITY CARD';
     }
 }
 
-// ──── Get Card Type Color Badge ────
 function getCardTypeBadgeColor() {
     switch(state.currentCardType) {
         case 'student': return { bg: '#059669', text: '#ffffff' };
         case 'staff': return { bg: '#2563eb', text: '#ffffff' };
-        case 'visitor': return { bg: '#dc2626', text: '#ffffff' };
+        case 'visitor': return { bg: '#0d2557', text: '#ffffff' };
         default: return { bg: '#6b7280', text: '#ffffff' };
     }
 }
 
 
 // ═══════════════════════════════════════════════
-//  DRAW FRONT SIDE
+//  DRAW VISITOR FRONT SIDE (EXACT MATCH TO REAL CARD)
+// ═══════════════════════════════════════════════
+
+function drawVisitorFrontSide() {
+    const W = canvas.width;
+    const H = canvas.height;
+    const themeColor = themeColorInput.value || '#173f8a';
+
+    // Clear
+    ctx.clearRect(0, 0, W, H);
+
+    ctx.save();
+    // Clip whole canvas to smooth rounded card corners
+    roundRect(0, 0, W, H, 28);
+    ctx.clip();
+
+    // ── Pure White Background ──
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, W, H);
+
+    // ── Deep Royal Blue Header Banner ──
+    const headerH = 175;
+    ctx.fillStyle = themeColor;
+    ctx.fillRect(0, 0, W, headerH);
+
+    // ── Arabic College Title ──
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 22px "Amiri", "Noto Sans Arabic", "Traditional Arabic", sans-serif';
+    const arabicTitle = (instArabicNameInput && instArabicNameInput.value) || 
+        INSTITUTIONS[state.currentInstitution].arabicName || 
+        'كلية الغيث للآداب والعلوم الإسلامية - للبنات';
+    ctx.fillText(arabicTitle, W / 2, 45);
+
+    // ── English College Name (Golden Yellow font as on real card) ──
+    const instName = (instNameInput && instNameInput.value) || INSTITUTIONS[state.currentInstitution].name;
+    ctx.font = '900 22px "Inter", sans-serif';
+    ctx.fillStyle = '#ffd200'; // Bright Golden Yellow
+    ctx.fillText(instName.toUpperCase(), W / 2, 82);
+
+    // ── College Address & Phone (White / Light Slate) ──
+    ctx.font = '600 13px "Inter", sans-serif';
+    ctx.fillStyle = '#e2e8f0';
+    const addr = (instAddressInput && instAddressInput.value) || INSTITUTIONS[state.currentInstitution].address;
+    const phone = (instPhoneInput && instPhoneInput.value) || INSTITUTIONS[state.currentInstitution].phone;
+    ctx.fillText(addr, W / 2, 118);
+    ctx.fillText(phone.startsWith('Ph:') ? phone : ('Ph: ' + phone), W / 2, 140);
+
+    // ── Attached Pill Badge: VISITORS' IDENTITY CARD ──
+    const pillW = 295;
+    const pillH = 40;
+    const pillX = (W - pillW) / 2;
+    const pillY = 155; // Overlaps bottom edge of blue header
+    const pillRadius = 20;
+
+    roundRect(pillX, pillY, pillW, pillH, pillRadius);
+    ctx.fillStyle = '#0c2452'; // Deep Dark Navy Pill
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    ctx.font = '800 15px "Inter", sans-serif';
+    ctx.fillStyle = '#ffffff';
+    ctx.textAlign = 'center';
+    ctx.fillText("VISITORS' IDENTITY CARD", W / 2, pillY + 26);
+
+    // ── Student Photo (Rounded Rectangle) ──
+    const photoW = 220;
+    const photoH = 260;
+    const photoX = (W - photoW) / 2;
+    const photoY = 225;
+    const photoRadius = 22;
+
+    // Green photo backdrop (typical institutional studio photo backdrop)
+    roundRect(photoX, photoY, photoW, photoH, photoRadius);
+    ctx.fillStyle = '#3f7856';
+    ctx.fill();
+
+    // Clip photo inside rounded rect
+    ctx.save();
+    roundRect(photoX, photoY, photoW, photoH, photoRadius);
+    ctx.clip();
+
+    if (state.userPhoto) {
+        const zoom = state.photoZoom / 100;
+        const aspect = state.userPhoto.width / state.userPhoto.height;
+        let drawW, drawH;
+        if (aspect > (photoW / photoH)) {
+            drawH = photoH * zoom;
+            drawW = drawH * aspect;
+        } else {
+            drawW = photoW * zoom;
+            drawH = drawW / aspect;
+        }
+        const dx = photoX + (photoW - drawW) / 2 + state.photoOffsetX;
+        const dy = photoY + (photoH - drawH) / 2 + state.photoOffsetY;
+        ctx.drawImage(state.userPhoto, dx, dy, drawW, drawH);
+    } else {
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '50px Inter';
+        ctx.textAlign = 'center';
+        ctx.fillText('📷', W / 2, photoY + photoH / 2 + 18);
+    }
+    ctx.restore();
+
+    // Outer border for photo
+    roundRect(photoX, photoY, photoW, photoH, photoRadius);
+    ctx.strokeStyle = '#cbd5e1';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    // ── Student Name (Centered, Navy Blue, Bold) ──
+    const studentName = (visitorStudentNameInput && visitorStudentNameInput.value) || 'AFRIN FATHIMA';
+    ctx.font = '900 32px "Inter", sans-serif';
+    ctx.fillStyle = '#1e3a8a';
+    ctx.textAlign = 'center';
+    ctx.fillText(studentName.toUpperCase(), W / 2, 535);
+
+    // ── Student Details (Left-aligned table block) ──
+    const detailStartX = 85;
+    let detailY = 592;
+    const lineSpacing = 38;
+
+    ctx.textAlign = 'left';
+
+    // 1. Admission Number (highlighted in red)
+    const admNo = (visitorStudentIdInput && visitorStudentIdInput.value) || '747';
+    ctx.font = '700 20px "Inter", sans-serif';
+    ctx.fillStyle = '#1f2937';
+    ctx.fillText('Admission Number : ', detailStartX, detailY);
+    const admLabelW = ctx.measureText('Admission Number : ').width;
+    ctx.font = '900 22px "Inter", sans-serif';
+    ctx.fillStyle = '#b91c1c'; // Red highlight as in the physical card
+    ctx.fillText(admNo, detailStartX + admLabelW, detailY);
+
+    // 2. Address Line 1
+    detailY += lineSpacing;
+    const addr1 = (visitorStudentAddr1Input && visitorStudentAddr1Input.value) || 'KODAKKATTU H, NERIAMANGALAM';
+    ctx.font = '700 19px "Inter", sans-serif';
+    ctx.fillStyle = '#1f2937';
+    ctx.fillText(addr1.toUpperCase(), detailStartX, detailY);
+
+    // 3. Address Line 2
+    detailY += lineSpacing;
+    const addr2 = (visitorStudentAddr2Input && visitorStudentAddr2Input.value) || 'PO, ERANAKULAM 686693';
+    ctx.fillText(addr2.toUpperCase(), detailStartX, detailY);
+
+    // 4. Contact No
+    detailY += lineSpacing;
+    const contact = (visitorStudentContactInput && visitorStudentContactInput.value) || '9562937331, 7561085134';
+    ctx.fillText('Contact No: ' + contact, detailStartX, detailY);
+
+    // 5. Duration
+    detailY += lineSpacing;
+    const duration = (visitorDurationInput && visitorDurationInput.value) || '2026-2032';
+    ctx.fillText('Duration   : ' + duration, detailStartX, detailY);
+
+    // Subtle outer card border
+    roundRect(0, 0, W, H, 28);
+    ctx.strokeStyle = '#e2e8f0';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    ctx.restore();
+}
+
+
+// ═══════════════════════════════════════════════
+//  DRAW VISITOR BACK SIDE (AUTHORIZED FAMILY GRID)
+// ═══════════════════════════════════════════════
+
+function drawVisitorBackSide() {
+    const W = canvas.width;
+    const H = canvas.height;
+    const themeColor = themeColorInput.value || '#173f8a';
+
+    // Clear
+    ctx.clearRect(0, 0, W, H);
+
+    ctx.save();
+    roundRect(0, 0, W, H, 28);
+    ctx.clip();
+
+    // ── Solid Royal Blue Background ──
+    ctx.fillStyle = themeColor;
+    ctx.fillRect(0, 0, W, H);
+
+    // ── Top Title: AUTHORIZED FAMILY ──
+    ctx.font = '900 28px "Inter", sans-serif';
+    ctx.fillStyle = '#ffffff';
+    ctx.textAlign = 'center';
+    ctx.letterSpacing = '1.5px';
+    ctx.fillText('AUTHORIZED FAMILY', W / 2, 75);
+
+    // ── Grid of Family Members (2 columns x 2 rows) ──
+    const members = state.familyMembers || [];
+    const colCenters = [185, 465];
+    const rowY = [125, 540];
+    const photoW = 200;
+    const photoH = 240;
+    const photoRadius = 22;
+
+    for (let i = 0; i < 4; i++) {
+        const member = members[i];
+        if (!member || !member.name) continue;
+
+        const col = i % 2;
+        const row = Math.floor(i / 2);
+        const cx = colCenters[col];
+        const py = rowY[row];
+        const px = cx - (photoW / 2);
+
+        // 1. Photo box with light cyan background (matches physical card)
+        roundRect(px, py, photoW, photoH, photoRadius);
+        ctx.fillStyle = '#7dd3fc';
+        ctx.fill();
+
+        // 2. Draw member photo
+        ctx.save();
+        roundRect(px, py, photoW, photoH, photoRadius);
+        ctx.clip();
+
+        if (member.photo) {
+            const aspect = member.photo.width / member.photo.height;
+            let drawW, drawH;
+            if (aspect > (photoW / photoH)) {
+                drawH = photoH;
+                drawW = drawH * aspect;
+            } else {
+                drawW = photoW;
+                drawH = drawW / aspect;
+            }
+            const dx = px + (photoW - drawW) / 2;
+            const dy = py + (photoH - drawH) / 2;
+            ctx.drawImage(member.photo, dx, dy, drawW, drawH);
+        } else {
+            ctx.fillStyle = '#0284c7';
+            ctx.font = '55px Inter';
+            ctx.textAlign = 'center';
+            ctx.fillText('👤', cx, py + photoH / 2 + 18);
+        }
+        ctx.restore();
+
+        // 3. Photo border
+        roundRect(px, py, photoW, photoH, photoRadius);
+        ctx.strokeStyle = '#bae6fd';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+
+        // 4. Member Name (Bold White Uppercase)
+        ctx.font = '900 19px "Inter", sans-serif';
+        ctx.fillStyle = '#ffffff';
+        ctx.textAlign = 'center';
+        ctx.fillText((member.name || '').toUpperCase(), cx, py + photoH + 32);
+
+        // 5. Member Relation (White / Light Sky Uppercase)
+        ctx.font = '700 15px "Inter", sans-serif';
+        ctx.fillStyle = '#e0f2fe';
+        ctx.fillText((member.relation || '').toUpperCase(), cx, py + photoH + 55);
+    }
+
+    ctx.restore();
+}
+
+
+// ═══════════════════════════════════════════════
+//  DRAW STUDENT / STAFF FRONT SIDE
 // ═══════════════════════════════════════════════
 
 function drawFrontSide() {
     const W = canvas.width;
     const H = canvas.height;
-    const themeColor = themeColorInput.value;
-    const accentColor = accentColorInput.value;
+    const themeColor = themeColorInput.value || '#064e3b';
+    const accentColor = accentColorInput.value || '#34d399';
 
     // Clear
     ctx.clearRect(0, 0, W, H);
 
-    // ── Background ──
+    ctx.save();
+    roundRect(0, 0, W, H, 28);
+    ctx.clip();
+
+    // Background
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, W, H);
 
-    // ── Top Header ──
+    // Top Header with curve
     const headerGrad = ctx.createLinearGradient(0, 0, W, 0);
     headerGrad.addColorStop(0, themeColor);
     headerGrad.addColorStop(1, darkenColor(themeColor, 15));
@@ -587,7 +1059,7 @@ function drawFrontSide() {
     ctx.quadraticCurveTo(W * 0.5, 280, 0, 200);
     ctx.fill();
 
-    // ── Decorative accent stripe ──
+    // Decorative accent stripe
     ctx.fillStyle = accentColor;
     ctx.beginPath();
     ctx.moveTo(0, 200);
@@ -595,19 +1067,17 @@ function drawFrontSide() {
     ctx.quadraticCurveTo(W * 0.5, 290, 0, 210);
     ctx.fill();
 
-    // ── Logo in header ──
+    // Logo in header
     if (state.logoImage) {
         const logoSize = 55;
         const logoX = 30;
         const logoY = 25;
         
-        // White circle background for logo
         ctx.beginPath();
         ctx.arc(logoX + logoSize/2, logoY + logoSize/2, logoSize/2 + 4, 0, Math.PI * 2);
         ctx.fillStyle = '#ffffff';
         ctx.fill();
 
-        // Draw logo clipped to circle
         ctx.save();
         ctx.beginPath();
         ctx.arc(logoX + logoSize/2, logoY + logoSize/2, logoSize/2, 0, Math.PI * 2);
@@ -616,27 +1086,26 @@ function drawFrontSide() {
         ctx.restore();
     }
 
-    // ── Institution Name ──
+    // Institution Name
     ctx.fillStyle = '#ffffff';
     ctx.textAlign = 'center';
     
     const instName = instNameInput.value || INSTITUTIONS[state.currentInstitution].name;
-    ctx.font = 'bold 26px Inter, sans-serif';
+    ctx.font = 'bold 24px Inter, sans-serif';
     
-    // Wrap institution name if too long
     const nameLines = wrapText(instName.toUpperCase(), W - 120);
     let nameY = state.logoImage ? 45 : 55;
     nameLines.forEach((line, i) => {
         ctx.fillText(line, W / 2, nameY + (i * 30));
     });
 
-    // ── Address ──
+    // Address
     const addrY = nameY + (nameLines.length * 30) + 8;
     ctx.font = '14px Inter, sans-serif';
     ctx.fillStyle = 'rgba(255,255,255,0.85)';
     ctx.fillText(instAddressInput.value || '', W / 2, addrY);
 
-    // ── Card Type Badge ──
+    // Card Type Badge
     const badge = getCardTypeBadgeColor();
     const badgeText = getCardTypeLabel();
     ctx.font = 'bold 14px Inter, sans-serif';
@@ -653,19 +1122,17 @@ function drawFrontSide() {
     ctx.textAlign = 'center';
     ctx.fillText(badgeText, W / 2, badgeY + 20);
 
-    // ── Photo Circle ──
+    // Photo Circle
     const centerX = W / 2;
     const centerY = 340;
     const radius = 120;
 
-    // Outer glow ring
     ctx.beginPath();
     ctx.arc(centerX, centerY, radius + 10, 0, Math.PI * 2);
     ctx.strokeStyle = accentColor;
     ctx.lineWidth = 3;
     ctx.stroke();
 
-    // White border
     ctx.beginPath();
     ctx.arc(centerX, centerY, radius + 5, 0, Math.PI * 2);
     ctx.fillStyle = '#ffffff';
@@ -674,7 +1141,6 @@ function drawFrontSide() {
     ctx.strokeStyle = themeColor;
     ctx.stroke();
 
-    // Photo or placeholder
     ctx.save();
     ctx.beginPath();
     ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
@@ -696,7 +1162,6 @@ function drawFrontSide() {
         const dy = centerY - drawH / 2 + state.photoOffsetY;
         ctx.drawImage(state.userPhoto, dx, dy, drawW, drawH);
     } else {
-        // Gradient placeholder
         const placeholderGrad = ctx.createLinearGradient(centerX - radius, centerY - radius, centerX + radius, centerY + radius);
         placeholderGrad.addColorStop(0, '#e2e8f0');
         placeholderGrad.addColorStop(1, '#cbd5e1');
@@ -709,16 +1174,11 @@ function drawFrontSide() {
     }
     ctx.restore();
 
-    // ── Details Section ──
+    // Details Section
     ctx.textAlign = 'center';
+    drawPersonFrontDetails(centerY + radius + 40);
 
-    if (state.currentCardType === 'visitor') {
-        drawVisitorFrontDetails(centerY + radius + 40);
-    } else {
-        drawPersonFrontDetails(centerY + radius + 40);
-    }
-
-    // ── Bottom Footer ──
+    // Bottom Footer
     const footerGrad = ctx.createLinearGradient(0, H - 90, 0, H);
     footerGrad.addColorStop(0, themeColor);
     footerGrad.addColorStop(1, darkenColor(themeColor, 20));
@@ -730,24 +1190,23 @@ function drawFrontSide() {
     ctx.quadraticCurveTo(W * 0.5, H - 100, 0, H - 70);
     ctx.fill();
 
-    // Accent stripe on footer
     ctx.fillStyle = accentColor;
     ctx.beginPath();
     ctx.moveTo(0, H - 70);
     ctx.quadraticCurveTo(W * 0.5, H - 100, W, H - 70);
-    ctx.quadraticCurveTo(W * 0.5, H - 95, 0, H - 65);
+    ctx.quadraticCurveTo(W * 0.5, -95, 0, H - 65);
     ctx.fill();
 
-    // Website in footer
     ctx.fillStyle = 'rgba(255,255,255,0.9)';
     ctx.font = '13px Inter, sans-serif';
     ctx.textAlign = 'center';
     ctx.fillText(instWebsiteInput.value || '', W / 2, H - 25);
 
-    // Phone in footer
     ctx.fillStyle = 'rgba(255,255,255,0.7)';
     ctx.font = '12px Inter, sans-serif';
     ctx.fillText('☎ ' + (instPhoneInput.value || ''), W / 2, H - 8);
+
+    ctx.restore();
 }
 
 function drawPersonFrontDetails(startY) {
@@ -758,7 +1217,7 @@ function drawPersonFrontDetails(startY) {
     ctx.fillStyle = '#1f2937';
     ctx.font = 'bold 36px Inter, sans-serif';
     ctx.textAlign = 'center';
-    const name = personNameInput.value || 'Name';
+    const name = personNameInput.value || 'Student Name';
     ctx.fillText(name, W / 2, startY);
 
     // Role / Class
@@ -815,71 +1274,9 @@ function drawPersonFrontDetails(startY) {
     });
 }
 
-function drawVisitorFrontDetails(startY) {
-    const W = canvas.width;
-    const themeColor = themeColorInput.value;
-
-    // Visitor Name
-    ctx.fillStyle = '#1f2937';
-    ctx.font = 'bold 32px Inter, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText(visitorNameInput.value || 'Visitor Name', W / 2, startY);
-
-    // Relation Badge
-    const relation = visitorRelationInput.value || '';
-    if (relation) {
-        ctx.font = 'bold 14px Inter, sans-serif';
-        const relBadgeW = ctx.measureText(relation).width + 30;
-        roundRect((W - relBadgeW) / 2, startY + 10, relBadgeW, 26, 13);
-        ctx.fillStyle = '#fef3c7';
-        ctx.fill();
-        ctx.strokeStyle = '#f59e0b';
-        ctx.lineWidth = 1;
-        ctx.stroke();
-        ctx.fillStyle = '#92400e';
-        ctx.font = 'bold 12px Inter, sans-serif';
-        ctx.fillText(relation, W / 2, startY + 28);
-    }
-
-    // Divider
-    ctx.beginPath();
-    ctx.moveTo(100, startY + 55);
-    ctx.lineTo(W - 100, startY + 55);
-    ctx.strokeStyle = '#e5e7eb';
-    ctx.lineWidth = 2;
-    ctx.stroke();
-
-    // Details
-    ctx.textAlign = 'left';
-    const labelX = 90;
-    const colonX = 280;
-    const valueX = 300;
-    let detailY = startY + 95;
-    const spacing = 36;
-
-    const details = [
-        { label: 'Student Name', value: visitorStudentNameInput.value },
-        { label: 'Admission No', value: visitorStudentIdInput.value },
-        { label: 'Class', value: visitorStudentClassInput.value },
-        { label: 'Visitor Phone', value: visitorPhoneInput.value },
-        { label: 'Purpose', value: visitorPurposeInput.value }
-    ];
-
-    details.forEach(d => {
-        if (!d.value) return;
-        ctx.font = '600 16px Inter, sans-serif';
-        ctx.fillStyle = '#9ca3af';
-        ctx.fillText(d.label, labelX, detailY);
-        ctx.fillText(':', colonX, detailY);
-        ctx.fillStyle = '#374151';
-        ctx.fillText(d.value, valueX, detailY);
-        detailY += spacing;
-    });
-}
-
 
 // ═══════════════════════════════════════════════
-//  DRAW BACK SIDE
+//  DRAW STUDENT / STAFF BACK SIDE
 // ═══════════════════════════════════════════════
 
 function drawBackSide() {
@@ -890,70 +1287,56 @@ function drawBackSide() {
 
     ctx.clearRect(0, 0, W, H);
 
-    // Background
+    ctx.save();
+    roundRect(0, 0, W, H, 28);
+    ctx.clip();
+
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, W, H);
 
-    // Top decorative bar
-    const topGrad = ctx.createLinearGradient(0, 0, W, 0);
-    topGrad.addColorStop(0, themeColor);
-    topGrad.addColorStop(1, darkenColor(themeColor, 10));
-    ctx.fillStyle = topGrad;
-    ctx.fillRect(0, 0, W, 120);
-
-    // Accent stripe
+    // Top Header Banner
+    const headerGrad = ctx.createLinearGradient(0, 0, W, 0);
+    headerGrad.addColorStop(0, themeColor);
+    headerGrad.addColorStop(1, darkenColor(themeColor, 15));
+    ctx.fillStyle = headerGrad;
+    ctx.fillRect(0, 0, W, 80);
     ctx.fillStyle = accentColor;
-    ctx.fillRect(0, 120, W, 5);
+    ctx.fillRect(0, 77, W, 4);
 
-    // Back side institution name
+    // Header title
     ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 22px Inter, sans-serif';
+    ctx.font = 'bold 20px Inter, sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText(instNameInput.value.toUpperCase(), W / 2, 50);
+    ctx.fillText(instNameInput.value || INSTITUTIONS[state.currentInstitution].name, W / 2, 45);
 
-    // Tagline
-    const inst = INSTITUTIONS[state.currentInstitution];
-    ctx.font = 'italic 14px Inter, sans-serif';
-    ctx.fillStyle = 'rgba(255,255,255,0.8)';
-    ctx.fillText(inst.tagline, W / 2, 78);
-
-    // Address
-    ctx.font = '13px Inter, sans-serif';
-    ctx.fillStyle = 'rgba(255,255,255,0.7)';
-    ctx.fillText(instAddressInput.value || '', W / 2, 100);
-
-    // ── QR Code Section ──
-    const qrY = 170;
-    ctx.font = 'bold 16px Inter, sans-serif';
-    ctx.fillStyle = themeColor;
-    ctx.fillText('SCAN FOR VERIFICATION', W / 2, qrY);
+    // QR Code Section
+    const qrY = 120;
+    const qrSize = 140;
+    const qrX = (W - qrSize) / 2;
 
     if (state.qrImage) {
-        const qrSize = 160;
-        const qrX = (W - qrSize) / 2;
-        const qrBoxY = qrY + 15;
+        const qrBoxPad = 12;
+        const qrBoxSize = qrSize + (qrBoxPad * 2);
+        const qrBoxX = (W - qrBoxSize) / 2;
+        const qrBoxY = qrY - qrBoxPad;
 
-        // QR white background box
-        roundRect(qrX - 10, qrBoxY - 5, qrSize + 20, qrSize + 20, 12);
-        ctx.fillStyle = '#ffffff';
+        roundRect(qrBoxX, qrBoxY, qrBoxSize, qrBoxSize, 12);
+        ctx.fillStyle = '#f8fafc';
         ctx.fill();
         ctx.strokeStyle = themeColor;
         ctx.lineWidth = 2;
         ctx.stroke();
 
-        ctx.drawImage(state.qrImage, qrX, qrBoxY, qrSize, qrSize);
+        ctx.drawImage(state.qrImage, qrX, qrY, qrSize, qrSize);
     }
 
-    // ── Terms & Conditions Section ──
-    const termsY = qrY + 210;
-    
-    // Title
+    // Terms & Conditions
+    const termsY = qrY + 180;
     ctx.font = 'bold 15px Inter, sans-serif';
     ctx.fillStyle = themeColor;
     ctx.textAlign = 'center';
     ctx.fillText('TERMS & CONDITIONS', W / 2, termsY);
 
-    // Divider
     ctx.beginPath();
     ctx.moveTo(100, termsY + 10);
     ctx.lineTo(W - 100, termsY + 10);
@@ -961,7 +1344,6 @@ function drawBackSide() {
     ctx.lineWidth = 1;
     ctx.stroke();
 
-    // Terms text
     const terms = [
         '• This card is the property of the institution.',
         '• Must be worn at all times within campus.',
@@ -969,17 +1351,6 @@ function drawBackSide() {
         '• Loss of card must be reported immediately.',
         '• This card is non-transferable.'
     ];
-
-    if (state.currentCardType === 'visitor') {
-        terms.length = 0;
-        terms.push(
-            '• This pass is valid for a single visit only.',
-            '• Visitor must be accompanied by authorized staff.',
-            '• Valid only for registered blood-relatives.',
-            '• Must be returned to the office after visit.',
-            '• Unauthorized persons will not be permitted.'
-        );
-    }
 
     ctx.textAlign = 'left';
     ctx.font = '13px Inter, sans-serif';
@@ -990,10 +1361,8 @@ function drawBackSide() {
         termY += 25;
     });
 
-    // ── Address & Contact Section ──
-    const contactY = termY + 30;
-
-    // Decorative line
+    // Contact info
+    const contactY = termY + 25;
     ctx.beginPath();
     ctx.moveTo(60, contactY);
     ctx.lineTo(W - 60, contactY);
@@ -1012,43 +1381,31 @@ function drawBackSide() {
     ctx.fillText('📞 ' + (instPhoneInput.value || ''), W / 2, contactY + 75);
     ctx.fillText('🌐 ' + (instWebsiteInput.value || ''), W / 2, contactY + 95);
 
-    // ── Person address if available ──
-    const personAddr = state.currentCardType === 'visitor' ? '' : (personAddressInput.value || '');
-    if (personAddr) {
-        ctx.fillText('🏠 ' + personAddr, W / 2, contactY + 120);
-    }
-
-    // ── Bottom Footer ──
-    const footerGrad = ctx.createLinearGradient(0, H - 70, 0, H);
-    footerGrad.addColorStop(0, themeColor);
-    footerGrad.addColorStop(1, darkenColor(themeColor, 15));
-    ctx.fillStyle = footerGrad;
-    ctx.fillRect(0, H - 60, W, 60);
-    ctx.fillStyle = accentColor;
-    ctx.fillRect(0, H - 60, W, 3);
-
-    // Signature area
+    // Signatures
     ctx.font = '12px Inter, sans-serif';
     ctx.fillStyle = '#9ca3af';
-    ctx.textAlign = 'center';
-    
-    // Left signature
     ctx.textAlign = 'left';
     ctx.fillText('______________________', 70, H - 85);
     ctx.font = '11px Inter, sans-serif';
     ctx.fillText('Holder\'s Signature', 100, H - 72);
 
-    // Right signature
     ctx.textAlign = 'right';
     ctx.fillText('______________________', W - 70, H - 85);
     ctx.font = '11px Inter, sans-serif';
     ctx.fillText('Authorized Signature', W - 100, H - 72);
 
-    // Footer text
+    // Bottom Footer
+    ctx.fillStyle = themeColor;
+    ctx.fillRect(0, H - 55, W, 55);
+    ctx.fillStyle = accentColor;
+    ctx.fillRect(0, H - 55, W, 3);
+
     ctx.textAlign = 'center';
     ctx.fillStyle = 'rgba(255,255,255,0.8)';
     ctx.font = '12px Inter, sans-serif';
-    ctx.fillText('Designed with ❤ by College ID Card System', W / 2, H - 20);
+    ctx.fillText('Designed by College ID Card System', W / 2, H - 25);
+
+    ctx.restore();
 }
 
 
@@ -1066,7 +1423,8 @@ function downloadCard(side) {
     
     let filename = '';
     if (state.currentCardType === 'visitor') {
-        filename = (visitorNameInput.value || 'visitor') + '_' + side;
+        const studentName = visitorStudentNameInput.value || 'visitor';
+        filename = studentName + '_VISITOR_' + side;
     } else {
         filename = (personNameInput.value || 'id-card') + '_' + side;
     }
@@ -1087,11 +1445,6 @@ function downloadBothSides() {
     setTimeout(() => downloadCard('back'), 500);
 }
 
-
-// ═══════════════════════════════════════════════
-//  UTILITY FUNCTIONS
-// ═══════════════════════════════════════════════
-
 function formatDate(dateStr) {
     if (!dateStr) return '';
     const d = new Date(dateStr);
@@ -1105,7 +1458,7 @@ function formatDate(dateStr) {
 
 window.onload = init;
 
-// Expose functions to global scope for onclick handlers
+// Expose functions to global scope
 window.switchInstitution = switchInstitution;
 window.switchCardType = switchCardType;
 window.setThemeColor = setThemeColor;
@@ -1113,3 +1466,8 @@ window.toggleSide = toggleSide;
 window.downloadCard = downloadCard;
 window.downloadBothSides = downloadBothSides;
 window.resetPhotoPosition = resetPhotoPosition;
+window.addFamilyMember = addFamilyMember;
+window.removeFamilyMember = removeFamilyMember;
+window.updateMemberName = updateMemberName;
+window.updateMemberRelation = updateMemberRelation;
+window.handleMemberPhotoUpload = handleMemberPhotoUpload;
