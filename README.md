@@ -1,4 +1,4 @@
-# College ID Card Designer
+# ID Card Designer
 
 > College Identity Card Design & Management System  
 > KKHM Islamic & Arts College | AL-GAITH Islamic & Arts College for Girls
