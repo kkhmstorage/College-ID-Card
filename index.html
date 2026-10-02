@@ -5,11 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>College ID Card Designer</title>
     <meta name="description" content="ID Card Design & Management System for KKHM Islamic & Arts College and AL-GAITH Islamic & Arts College for Girls">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Noto+Sans+Arabic:wght@400;600;700;800&family=Inter:wght@300;400;500;600;700;800;900&family=Noto+Sans+Malayalam:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
-    <link rel="stylesheet" href="style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <link rel="stylesheet" href="style.css?v=3.5.0">
 </head>
 <body class="min-h-screen">
 
@@ -25,6 +29,15 @@
             </div>
         </div>
         <div class="nav-actions">
+            <button class="nav-btn-records" onclick="openBatchModal()" title="ബാച്ച് തിരിച്ചുള്ള കാർഡുകൾ കാണുക">
+                <i class="fas fa-folder-open"></i>
+                <span>ബാച്ച് കാർഡുകൾ</span>
+                <span class="badge-count" id="batchTotalCount">0</span>
+            </button>
+            <button class="nav-btn-drive" onclick="openDriveSettingsModal()" title="Google Drive സെറ്റിംഗ്സ്">
+                <i class="fab fa-google-drive"></i>
+                <span>Google Drive</span>
+            </button>
             <div class="institution-switcher" id="institutionSwitcher">
                 <button class="inst-btn" data-inst="kkhm" onclick="switchInstitution('kkhm')">
                     <span class="inst-dot kkhm-dot"></span>
@@ -43,6 +56,28 @@
         <!-- ──── LEFT PANEL: Controls ──── -->
         <aside class="controls-panel" id="controlsPanel">
             
+            <!-- Batch Management Section -->
+            <div class="panel-section">
+                <h3 class="section-title"><i class="fas fa-graduation-cap"></i> ബാച്ച് വിവരങ്ങൾ (Batch)</h3>
+                <div class="form-row">
+                    <div class="form-group" style="flex:1;">
+                        <label>വിദ്യാർത്ഥി ബാച്ച് (Academic Batch)</label>
+                        <select id="batchSelect" class="form-input font-bold" onchange="handleBatchSelectChange(this.value)">
+                            <option value="2026-2032" selected>Batch 2026-2032</option>
+                            <option value="2025-2031">Batch 2025-2031</option>
+                            <option value="2024-2030">Batch 2024-2030</option>
+                            <option value="2023-2029">Batch 2023-2029</option>
+                            <option value="2022-2028">Batch 2022-2028</option>
+                            <option value="custom">+ പുതിയ ബാച്ച് നൽകുക (Custom)</option>
+                        </select>
+                    </div>
+                    <div class="form-group hidden" id="customBatchWrapper" style="flex:1;">
+                        <label>പുതിയ ബാച്ച് പേര്</label>
+                        <input type="text" id="customBatchInput" class="form-input font-bold" placeholder="e.g. 2027-2033" oninput="handleCustomBatchInput(this.value)">
+                    </div>
+                </div>
+            </div>
+
             <!-- Card Type Selector -->
             <div class="panel-section">
                 <h3 class="section-title"><i class="fas fa-layer-group"></i> കാർഡ് തരം തിരഞ്ഞെടുക്കുക</h3>
@@ -278,12 +313,180 @@
                     <i class="fas fa-file-image"></i> Both Sides
                 </button>
             </div>
+
+            <!-- Batch Storage & Google Drive Actions Bar -->
+            <div class="cloud-storage-bar">
+                <button class="cloud-btn btn-save-batch" onclick="saveCurrentCardToBatch()" id="btnSaveBatch" title="വിദ്യാർത്ഥിയുടെ ബാച്ചിലേക്ക് കാർഡ് സേവ് ചെയ്യുക">
+                    <i class="fas fa-save"></i>
+                    <span>ബാച്ചിലേക്ക് സേവ് ചെയ്യുക</span>
+                </button>
+                <button class="cloud-btn btn-drive-upload" onclick="uploadCurrentCardToDrive()" id="btnUploadDrive" title="Google Drive-ൽ ബാച്ച് ഫോൾഡറിലേക്ക് അപ്‌ലോഡ് ചെയ്യുക">
+                    <i class="fab fa-google-drive"></i>
+                    <span>Google Drive-ലേക്ക് അപ്‌ലോഡ്</span>
+                </button>
+                <button class="cloud-btn btn-view-batch" onclick="openBatchModal()" title="ഈ ബാച്ചിലെ എല്ലാ കാർഡുകളും കാണുക">
+                    <i class="fas fa-layer-group"></i>
+                    <span>ബാച്ച് ലിസ്റ്റ് കാണുക (<span id="currentBatchCountBadge">0</span>)</span>
+                </button>
+            </div>
         </section>
     </main>
 
     <!-- Hidden QR container -->
     <div id="qrContainer" style="position:absolute;left:-9999px;top:-9999px;"></div>
 
-    <script src="app.js"></script>
+    <!-- ═══════════════ BATCH RECORDS MODAL ═══════════════ -->
+    <div class="modal-backdrop" id="batchModal">
+        <div class="modal-dialog">
+            <div class="modal-header">
+                <h3 class="modal-title">
+                    <i class="fas fa-folder-open"></i>
+                    <span>ബാച്ച് തിരിച്ചുള്ള ഐഡി കാർഡുകൾ (Batch ID Card Records)</span>
+                </h3>
+                <button class="modal-close-btn" onclick="closeBatchModal()" title="Close">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <!-- Batch Toolbar -->
+                <div class="batch-toolbar">
+                    <div class="batch-filter-row" id="batchFilterPills">
+                        <!-- Populated dynamically: All, Batch 2026-2032, etc. -->
+                    </div>
+                    <div class="batch-actions-row">
+                        <div class="batch-search-box">
+                            <i class="fas fa-search"></i>
+                            <input type="text" id="batchSearchInput" class="batch-search-input" placeholder="വിദ്യാർത്ഥിയുടെ പേര് അല്ലെങ്കിൽ Admission No തിരയുക..." oninput="handleBatchSearch(this.value)">
+                        </div>
+                        <div class="batch-bulk-buttons">
+                            <button class="btn-bulk-drive" onclick="uploadCurrentBatchToDrive()" title="ഈ ബാച്ചിലെ എല്ലാ കാർഡുകളും Google Drive-ലേക്ക് അപ്‌ലോഡ് ചെയ്യുക">
+                                <i class="fab fa-google-drive"></i>
+                                <span>Upload All to Drive</span>
+                            </button>
+                            <button class="btn-bulk-zip" onclick="downloadBatchAsZip()" title="ഈ ബാച്ചിലെ എല്ലാ കാർഡുകളും ZIP ഫയലായി ഡൗൺലോഡ് ചെയ്യുക">
+                                <i class="fas fa-file-archive"></i>
+                                <span>Download Batch ZIP</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Batch Cards Grid Container -->
+                <div class="batch-card-grid" id="batchCardsGrid">
+                    <!-- Populated dynamically by app.js -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <span style="font-size: 13px; color: #94a3b8; margin-right: auto;" id="batchModalFooterStats">
+                    Total: 0 cards
+                </span>
+                <button class="download-btn secondary" onclick="closeBatchModal()">
+                    <span>അടയ്ക്കുക (Close)</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════════ GOOGLE DRIVE SETTINGS MODAL ═══════════════ -->
+    <div class="modal-backdrop" id="driveSettingsModal">
+        <div class="modal-dialog modal-dialog-sm">
+            <div class="modal-header">
+                <h3 class="modal-title">
+                    <i class="fab fa-google-drive" style="color:#60a5fa;"></i>
+                    <span>Google Drive ക്രമീകരണങ്ങൾ (Settings)</span>
+                </h3>
+                <button class="modal-close-btn" onclick="closeDriveSettingsModal()" title="Close">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div style="background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.25); border-radius: 8px; padding: 12px; margin-bottom: 16px; font-size: 12px; color: #bfdbfe; line-height: 1.5;">
+                    <i class="fas fa-info-circle mr-1"></i>
+                    നിർമ്മിക്കുന്ന ഓരോ ഐഡി കാർഡും വിദ്യാർത്ഥിയുടെ ബാച്ച് അടിസ്ഥാനമാക്കി കോളേജിന്റെ Google Drive-ൽ പ്രത്യേക ഫോൾഡറിലേക്ക് ഓട്ടോമാറ്റിക്കായി സൂക്ഷിക്കപ്പെടുന്നു.
+                </div>
+
+                <div class="form-group" style="margin-bottom: 16px;">
+                    <label style="font-size: 12px; color: #94a3b8; font-weight: 700; margin-bottom: 6px; display: block;">
+                        Google Apps Script Web App URL
+                    </label>
+                    <input type="text" id="driveScriptUrlInput" class="form-input" style="font-size: 12px; font-family: monospace;" placeholder="https://script.google.com/macros/s/.../exec">
+                    <p style="font-size: 11px; color: #64748b; margin-top: 4px;">കോളേജിന്റെ എക്സിസ്റ്റിങ് ഡ്രൈവ് അപ്‌ലോഡ് സ്ക്രിപ്റ്റ് ഉപയോഗിക്കുന്നു.</p>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 16px;">
+                    <label style="font-size: 12px; color: #94a3b8; font-weight: 700; margin-bottom: 6px; display: block;">
+                        Google Drive Root Folder Name
+                    </label>
+                    <input type="text" id="driveRootFolderInput" class="form-input font-bold" value="College_ID_Cards" placeholder="e.g. College_ID_Cards">
+                    <p style="font-size: 11px; color: #64748b; margin-top: 4px;">
+                        ഓരോ ബാച്ചിനും പ്രത്യേകം സബ് ഫോൾഡർ ഉണ്ടാകും. (e.g. <code>College_ID_Cards/Batch_2026-2032/</code>)
+                    </p>
+                </div>
+
+                <div id="driveConnectionStatus" style="font-size: 12px; padding: 8px 12px; border-radius: 6px; display: none;"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="download-btn secondary" type="button" onclick="testDriveConnection()" id="btnTestDrive">
+                    <i class="fas fa-plug"></i> Test Connection
+                </button>
+                <button class="download-btn primary" type="button" onclick="saveDriveSettings()">
+                    <i class="fas fa-check"></i> Save Settings
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════════ UPLOAD OVERLAY ═══════════════ -->
+    <div class="upload-overlay" id="uploadOverlay">
+        <div class="upload-dialog">
+            <div class="upload-icon-spinner">
+                <i class="fab fa-google-drive"></i>
+            </div>
+            <h4 class="upload-title" id="uploadOverlayTitle">Google Drive ലേക്ക് അപ്‌ലോഡ് ചെയ്യുന്നു...</h4>
+            <p class="upload-desc" id="uploadOverlayDesc">ദയവായി കാത്തിരിക്കുക, ഐഡി കാർഡ് ഡ്രൈവ് ഫോൾഡറിലേക്ക് സൂക്ഷിക്കുന്നു.</p>
+            <div class="upload-progress-track">
+                <div class="upload-progress-fill" id="uploadProgressFill"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════════ CARD FULL PREVIEW MODAL ═══════════════ -->
+    <div class="modal-backdrop" id="cardPreviewModal">
+        <div class="modal-dialog" style="max-width: 850px;">
+            <div class="modal-header">
+                <h3 class="modal-title" id="previewModalTitle">
+                    <i class="fas fa-id-card"></i>
+                    <span>കാർഡ് വിശദവിവരങ്ങൾ</span>
+                </h3>
+                <button class="modal-close-btn" onclick="closeCardPreviewModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body" style="text-align: center;">
+                <div style="display: flex; gap: 20px; justify-content: center; flex-wrap: wrap;">
+                    <div>
+                        <p style="font-size: 12px; color: #94a3b8; font-weight: 700; margin-bottom: 8px;">FRONT SIDE</p>
+                        <img id="fullPreviewFrontImg" src="" style="width: 280px; height: auto; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.15);">
+                    </div>
+                    <div>
+                        <p style="font-size: 12px; color: #94a3b8; font-weight: 700; margin-bottom: 8px;">BACK SIDE</p>
+                        <img id="fullPreviewBackImg" src="" style="width: 280px; height: auto; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.15);">
+                    </div>
+                </div>
+                <div id="fullPreviewDriveLinkArea" style="margin-top: 18px;"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="download-btn secondary" onclick="closeCardPreviewModal()">Close</button>
+                <button class="download-btn primary" id="btnPreviewLoadDesigner">
+                    <i class="fas fa-edit"></i> Edit in Designer
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════════ TOAST NOTIFICATION CONTAINER ═══════════════ -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script src="app.js?v=3.5.0"></script>
 </body>
 </html>

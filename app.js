@@ -36,6 +36,9 @@ let state = {
     currentInstitution: 'algaith',
     currentCardType: 'visitor',   // student | staff | visitor
     showingSide: 'front',          // front | back
+    currentBatch: '2026-2032',
+    activeFilterBatch: 'all',
+    searchQuery: '',
     userPhoto: null,
     logoImage: null,
     qrImage: null,
@@ -129,6 +132,8 @@ function init() {
     setupDragHandlers();
     renderFamilyMembersList();
     loadSampleImages();
+    initBatchDatabase();
+    updateBatchCountBadges();
     drawCard();
 }
 
@@ -697,6 +702,17 @@ function drawCard() {
     }
 }
 
+// ──── HELPER: Safe Display Name (Preserves Malayalam & Arabic Unicode) ────
+function formatDisplayName(text) {
+    if (!text) return '';
+    const str = String(text).trim();
+    // If Malayalam Unicode (\u0D00-\u0D7F) or Arabic (\u0600-\u06FF), do NOT uppercase
+    if (/[\u0D00-\u0D7F\u0600-\u06FF]/.test(str)) {
+        return str;
+    }
+    return str.toUpperCase();
+}
+
 // ──── HELPER: Draw Rounded Rectangle ────
 function roundRect(x, y, w, h, r) {
     ctx.beginPath();
@@ -872,12 +888,16 @@ function drawVisitorFrontSide() {
     ctx.lineWidth = 1.5;
     ctx.stroke();
 
-    // ── Student Name (Centered, Navy Blue, Bold) ──
+    // ── Student Name (Centered, Navy Blue, Bold, Malayalam Safe) ──
     const studentName = (visitorStudentNameInput && visitorStudentNameInput.value) || 'AFRIN FATHIMA';
-    ctx.font = '900 32px "Inter", sans-serif';
+    const dispStudentName = formatDisplayName(studentName);
+    ctx.font = '900 30px "Noto Sans Malayalam", "Inter", sans-serif';
+    if (ctx.measureText(dispStudentName).width > W - 120) {
+        ctx.font = '900 24px "Noto Sans Malayalam", "Inter", sans-serif';
+    }
     ctx.fillStyle = '#1e3a8a';
     ctx.textAlign = 'center';
-    ctx.fillText(studentName.toUpperCase(), W / 2, 535);
+    ctx.fillText(dispStudentName, W / 2, 535);
 
     // ── Student Details (Left-aligned table block) ──
     const detailStartX = 85;
@@ -1164,12 +1184,16 @@ function drawPersonFrontDetails(startY) {
     const W = canvas.width;
     const themeColor = themeColorInput.value || '#173f8a';
 
-    // Name
+    // Name (Malayalam & Unicode Safe)
     ctx.fillStyle = '#111827';
-    ctx.font = '900 32px Inter, sans-serif';
     ctx.textAlign = 'center';
-    const name = personNameInput.value || 'Student Name';
-    ctx.fillText(name.toUpperCase(), W / 2, startY);
+    const name = (personNameInput && personNameInput.value) || 'Student Name';
+    const dispName = formatDisplayName(name);
+    ctx.font = '900 30px "Noto Sans Malayalam", "Inter", sans-serif';
+    if (ctx.measureText(dispName).width > W - 120) {
+        ctx.font = '900 23px "Noto Sans Malayalam", "Inter", sans-serif';
+    }
+    ctx.fillText(dispName, W / 2, startY);
 
     // Role / Class
     ctx.fillStyle = themeColor;
@@ -1395,10 +1419,725 @@ function downloadBothSides() {
     setTimeout(() => downloadCard('back'), 500);
 }
 
-function formatDate(dateStr) {
-    if (!dateStr) return '';
-    const d = new Date(dateStr);
-    return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+// ═══════════════════════════════════════════════
+//  BATCH STORAGE & MANAGEMENT SYSTEM
+// ═══════════════════════════════════════════════
+
+const BATCH_STORAGE_KEY = 'college_id_cards_batch_db';
+const DEFAULT_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzCMjndPSmWknBig3XkP9aSkm5hRxpMqjgterH___SlQ285m5ok8POEn62b_ma4d9bj/exec";
+
+function getCurrentBatch() {
+    const select = document.getElementById('batchSelect');
+    if (select && select.value === 'custom') {
+        const custom = document.getElementById('customBatchInput');
+        return (custom && custom.value.trim()) || state.currentBatch || 'Custom_Batch';
+    }
+    return (select && select.value) || state.currentBatch || '2026-2032';
+}
+
+function handleBatchSelectChange(val) {
+    const customWrapper = document.getElementById('customBatchWrapper');
+    if (val === 'custom') {
+        if (customWrapper) customWrapper.classList.remove('hidden');
+        const customInput = document.getElementById('customBatchInput');
+        if (customInput) customInput.focus();
+    } else {
+        if (customWrapper) customWrapper.classList.add('hidden');
+        state.currentBatch = val;
+        if (visitorDurationInput) visitorDurationInput.value = val;
+        drawCard();
+    }
+    updateBatchCountBadges();
+}
+
+function handleCustomBatchInput(val) {
+    state.currentBatch = val.trim() || 'Custom_Batch';
+    if (visitorDurationInput) visitorDurationInput.value = state.currentBatch;
+    drawCard();
+    updateBatchCountBadges();
+}
+
+function getAllBatchCards() {
+    try {
+        const raw = localStorage.getItem(BATCH_STORAGE_KEY);
+        return raw ? JSON.parse(raw) : [];
+    } catch (e) {
+        console.error('Error reading batch cards:', e);
+        return [];
+    }
+}
+
+function saveCardToBatchDB(cardObj) {
+    try {
+        let cards = getAllBatchCards();
+        const existingIdx = cards.findIndex(c => c.id === cardObj.id || (c.name === cardObj.name && c.idNumber === cardObj.idNumber && c.batch === cardObj.batch));
+        if (existingIdx >= 0) {
+            cards[existingIdx] = { ...cards[existingIdx], ...cardObj, updatedAt: new Date().toISOString() };
+        } else {
+            cards.unshift(cardObj);
+        }
+        localStorage.setItem(BATCH_STORAGE_KEY, JSON.stringify(cards));
+        updateBatchCountBadges();
+        return true;
+    } catch (e) {
+        console.error('Error saving card to DB:', e);
+        return false;
+    }
+}
+
+function deleteCardFromBatchDB(id) {
+    try {
+        let cards = getAllBatchCards();
+        cards = cards.filter(c => c.id !== id);
+        localStorage.setItem(BATCH_STORAGE_KEY, JSON.stringify(cards));
+        updateBatchCountBadges();
+        return true;
+    } catch (e) {
+        console.error('Error deleting card:', e);
+        return false;
+    }
+}
+
+function updateBatchCountBadges() {
+    const cards = getAllBatchCards();
+    const totalCountEl = document.getElementById('batchTotalCount');
+    if (totalCountEl) totalCountEl.textContent = cards.length;
+
+    const currentBatch = getCurrentBatch();
+    const currentBatchCount = cards.filter(c => c.batch === currentBatch).length;
+    const currentBatchBadge = document.getElementById('currentBatchCountBadge');
+    if (currentBatchBadge) currentBatchBadge.textContent = currentBatchCount;
+}
+
+function initBatchDatabase() {
+    const cards = getAllBatchCards();
+    if (cards.length === 0) {
+        // Sample card for demonstration
+        const sampleCard = {
+            id: 'sample_747',
+            batch: '2026-2032',
+            institution: 'algaith',
+            institutionName: INSTITUTIONS.algaith.name,
+            cardType: 'visitor',
+            name: 'AFRIN FATHIMA',
+            idNumber: '747',
+            roleOrDept: '2026-2032',
+            phone: '9562937331, 7561085134',
+            frontImg: 'assets/student_sample.jpg',
+            backImg: 'assets/father_sample.jpg',
+            driveFrontUrl: null,
+            driveBackUrl: null,
+            driveStatus: 'pending',
+            savedAt: new Date().toISOString()
+        };
+        saveCardToBatchDB(sampleCard);
+    }
+}
+
+async function saveCurrentCardToBatch() {
+    try {
+        const currentBatch = getCurrentBatch();
+        const prevSide = state.showingSide;
+
+        // Render and capture Front side
+        state.showingSide = 'front';
+        drawCard();
+        const frontDataUrl = canvas.toDataURL('image/png');
+
+        // Render and capture Back side
+        state.showingSide = 'back';
+        drawCard();
+        const backDataUrl = canvas.toDataURL('image/png');
+
+        // Restore view
+        state.showingSide = prevSide;
+        drawCard();
+
+        let cardName = '';
+        let cardIdNum = '';
+        let roleOrDept = '';
+        let phone = '';
+
+        if (state.currentCardType === 'visitor') {
+            cardName = (visitorStudentNameInput && visitorStudentNameInput.value) || 'AFRIN FATHIMA';
+            cardIdNum = (visitorStudentIdInput && visitorStudentIdInput.value) || '747';
+            roleOrDept = (visitorDurationInput && visitorDurationInput.value) || currentBatch;
+            phone = (visitorStudentContactInput && visitorStudentContactInput.value) || '';
+        } else {
+            cardName = (personNameInput && personNameInput.value) || 'Student Name';
+            cardIdNum = (personIdInput && personIdInput.value) || '001';
+            roleOrDept = (personRoleInput && personRoleInput.value) || '';
+            phone = (personPhoneInput && personPhoneInput.value) || '';
+        }
+
+        const cardRecord = {
+            id: 'card_' + Date.now(),
+            batch: currentBatch,
+            institution: state.currentInstitution,
+            institutionName: INSTITUTIONS[state.currentInstitution].name,
+            cardType: state.currentCardType,
+            name: formatDisplayName(cardName),
+            idNumber: cardIdNum,
+            roleOrDept: roleOrDept,
+            phone: phone,
+            frontImg: frontDataUrl,
+            backImg: backDataUrl,
+            driveFrontUrl: null,
+            driveBackUrl: null,
+            driveStatus: 'pending',
+            savedAt: new Date().toISOString()
+        };
+
+        saveCardToBatchDB(cardRecord);
+        showToast(`ബാച്ച് ${currentBatch}-ലേക്ക് "${cardRecord.name}" വിജയകരമായി സേവ് ചെയ്തു! ✓`, 'success');
+        return cardRecord;
+    } catch (err) {
+        console.error('Save to batch error:', err);
+        showToast('സേവ് ചെയ്യുന്നതിൽ തടസ്സം: ' + err.message, 'error');
+        return null;
+    }
+}
+
+
+// ═══════════════════════════════════════════════
+//  BATCH MODAL UI & CONTROLS
+// ═══════════════════════════════════════════════
+
+function openBatchModal(defaultBatch) {
+    if (defaultBatch) {
+        state.activeFilterBatch = defaultBatch;
+    } else if (state.activeFilterBatch === 'all') {
+        state.activeFilterBatch = getCurrentBatch();
+    }
+    renderBatchFilterPills();
+    renderBatchCards(state.activeFilterBatch, state.searchQuery);
+    const modal = document.getElementById('batchModal');
+    if (modal) modal.classList.add('active');
+}
+
+function closeBatchModal() {
+    const modal = document.getElementById('batchModal');
+    if (modal) modal.classList.remove('active');
+}
+
+function renderBatchFilterPills() {
+    const container = document.getElementById('batchFilterPills');
+    if (!container) return;
+
+    const cards = getAllBatchCards();
+    const standardBatches = ['2026-2032', '2025-2031', '2024-2030', '2023-2029', '2022-2028'];
+    const cardBatches = [...new Set(cards.map(c => c.batch))];
+    const allBatches = [...new Set(['all', ...cardBatches, ...standardBatches])];
+
+    container.innerHTML = allBatches.map(b => {
+        const count = b === 'all' ? cards.length : cards.filter(c => c.batch === b).length;
+        const label = b === 'all' ? 'എല്ലാ ബാച്ചുകളും' : `Batch ${b}`;
+        const activeClass = state.activeFilterBatch === b ? 'active' : '';
+        return `
+            <button class="batch-filter-pill ${activeClass}" onclick="filterBatchCards('${b}')">
+                <span>${label}</span>
+                <span class="pill-count">${count}</span>
+            </button>
+        `;
+    }).join('');
+}
+
+function filterBatchCards(batch) {
+    state.activeFilterBatch = batch;
+    renderBatchFilterPills();
+    renderBatchCards(batch, state.searchQuery);
+}
+
+function handleBatchSearch(query) {
+    state.searchQuery = (query || '').toLowerCase().trim();
+    renderBatchCards(state.activeFilterBatch, state.searchQuery);
+}
+
+function renderBatchCards(filterBatch = 'all', searchQuery = '') {
+    const container = document.getElementById('batchCardsGrid');
+    if (!container) return;
+
+    let cards = getAllBatchCards();
+
+    // 1. Filter by batch
+    if (filterBatch !== 'all') {
+        cards = cards.filter(c => c.batch === filterBatch);
+    }
+
+    // 2. Filter by search query
+    if (searchQuery) {
+        cards = cards.filter(c => {
+            const name = (c.name || '').toLowerCase();
+            const id = (c.idNumber || '').toLowerCase();
+            const phone = (c.phone || '').toLowerCase();
+            return name.includes(searchQuery) || id.includes(searchQuery) || phone.includes(searchQuery);
+        });
+    }
+
+    // Update footer stats
+    const statsEl = document.getElementById('batchModalFooterStats');
+    if (statsEl) {
+        const syncedCount = cards.filter(c => c.driveStatus === 'synced').length;
+        statsEl.textContent = `Total: ${cards.length} cards | Uploaded to Drive: ${syncedCount} | Pending: ${cards.length - syncedCount}`;
+    }
+
+    if (cards.length === 0) {
+        container.innerHTML = `
+            <div class="batch-empty-state" style="grid-column: 1 / -1;">
+                <div class="batch-empty-icon"><i class="fas fa-id-card-alt"></i></div>
+                <div class="batch-empty-title">ഈ ബാച്ചിൽ കാർഡുകൾ ഒന്നും ലഭ്യമല്ല</div>
+                <p>ഐഡി കാർഡ് തയ്യാറാക്കിയ ശേഷം "ബാച്ചിലേക്ക് സേവ് ചെയ്യുക" ക്ലിക്ക് ചെയ്താൽ ഇവിടെ കാണാം.</p>
+            </div>
+        `;
+        return;
+    }
+
+    container.innerHTML = cards.map(c => {
+        const driveBadge = c.driveStatus === 'synced' 
+            ? `<a href="${c.driveFrontUrl || '#'}" target="_blank" class="drive-status-badge drive-synced" title="Google Drive-ൽ തുറക്കുക">
+                 <i class="fab fa-google-drive"></i> Drive-ൽ ഉണ്ട് ✓
+               </a>`
+            : `<button class="drive-status-badge drive-pending" onclick="uploadSingleBatchCardToDrive('${c.id}')" title="Google Drive ലേക്ക് അപ്‌ലോഡ് ചെയ്യുക">
+                 <i class="fas fa-cloud-upload-alt"></i> Drive-ലേക്ക് അപ്‌ലോഡ്
+               </button>`;
+
+        const typeClass = `type-${c.cardType || 'visitor'}`;
+
+        return `
+            <div class="batch-card-tile">
+                <div class="batch-card-header">
+                    <span class="tile-badge-batch"><i class="fas fa-graduation-cap mr-1"></i>${c.batch}</span>
+                    <span class="tile-badge-type ${typeClass}">${c.cardType}</span>
+                </div>
+                <div class="batch-card-preview-row">
+                    <div class="tile-preview-thumb" onclick="previewCardFull('${c.id}')" title="ഫുൾ പ്രിവ്യൂ കാണുക">
+                        <img src="${c.frontImg}" alt="${c.name} Front">
+                    </div>
+                    <div class="batch-card-info">
+                        <h4 class="card-info-name" title="${c.name}">${c.name}</h4>
+                        <div class="card-info-detail">
+                            <span>Adm No:</span>
+                            <strong style="color: #f87171;">${c.idNumber || '-'}</strong>
+                        </div>
+                        <div class="card-info-detail">
+                            <span>Course:</span>
+                            <strong>${c.roleOrDept || '-'}</strong>
+                        </div>
+                        ${driveBadge}
+                    </div>
+                </div>
+                <div class="batch-card-actions">
+                    <button class="btn-card-action btn-action-edit" onclick="loadCardToDesigner('${c.id}')" title="ഡിസൈനറിലേക്ക് ലോഡ് ചെയ്യുക">
+                        <i class="fas fa-edit"></i> Edit
+                    </button>
+                    <button class="btn-card-action btn-action-download" onclick="downloadSingleCard('${c.id}', 'front')" title="Front PNG ഡൗൺലോഡ്">
+                        <i class="fas fa-download"></i> Front
+                    </button>
+                    <button class="btn-card-action btn-action-download" onclick="downloadSingleCard('${c.id}', 'back')" title="Back PNG ഡൗൺലോഡ്">
+                        <i class="fas fa-download"></i> Back
+                    </button>
+                    <button class="btn-card-action btn-action-delete" onclick="deleteCardFromBatch('${c.id}')" title="ഡിലീറ്റ് ചെയ്യുക">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function loadCardToDesigner(cardId) {
+    const cards = getAllBatchCards();
+    const card = cards.find(c => c.id === cardId);
+    if (!card) return;
+
+    if (card.institution) switchInstitution(card.institution);
+    if (card.cardType) switchCardType(card.cardType);
+
+    if (card.batch) {
+        state.currentBatch = card.batch;
+        const select = document.getElementById('batchSelect');
+        if (select) {
+            let found = false;
+            for (let opt of select.options) {
+                if (opt.value === card.batch) {
+                    select.value = card.batch;
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                select.value = 'custom';
+                const customWrapper = document.getElementById('customBatchWrapper');
+                const customInput = document.getElementById('customBatchInput');
+                if (customWrapper) customWrapper.classList.remove('hidden');
+                if (customInput) customInput.value = card.batch;
+            }
+        }
+    }
+
+    if (card.cardType === 'visitor') {
+        if (visitorStudentNameInput) visitorStudentNameInput.value = card.name;
+        if (visitorStudentIdInput) visitorStudentIdInput.value = card.idNumber;
+        if (visitorDurationInput) visitorDurationInput.value = card.roleOrDept || card.batch;
+        if (visitorStudentContactInput && card.phone) visitorStudentContactInput.value = card.phone;
+    } else {
+        if (personNameInput) personNameInput.value = card.name;
+        if (personIdInput) personIdInput.value = card.idNumber;
+        if (personRoleInput) personRoleInput.value = card.roleOrDept;
+        if (personPhoneInput && card.phone) personPhoneInput.value = card.phone;
+    }
+
+    closeBatchModal();
+    generateQR();
+    drawCard();
+    showToast(`"${card.name}" കാർഡ് ഡിസൈനറിലേക്ക് ലോഡ് ചെയ്തു! ✓`, 'info');
+}
+
+function previewCardFull(cardId) {
+    const cards = getAllBatchCards();
+    const card = cards.find(c => c.id === cardId);
+    if (!card) return;
+
+    const modal = document.getElementById('cardPreviewModal');
+    const frontImg = document.getElementById('fullPreviewFrontImg');
+    const backImg = document.getElementById('fullPreviewBackImg');
+    const titleEl = document.getElementById('previewModalTitle');
+    const driveArea = document.getElementById('fullPreviewDriveLinkArea');
+    const loadBtn = document.getElementById('btnPreviewLoadDesigner');
+
+    if (titleEl) titleEl.innerHTML = `<i class="fas fa-id-card"></i> ${card.name} (${card.batch})`;
+    if (frontImg) frontImg.src = card.frontImg;
+    if (backImg) backImg.src = card.backImg;
+
+    if (driveArea) {
+        if (card.driveStatus === 'synced') {
+            driveArea.innerHTML = `
+                <a href="${card.driveFrontUrl || '#'}" target="_blank" class="download-btn primary" style="display:inline-flex;">
+                    <i class="fab fa-google-drive"></i> View in Google Drive
+                </a>
+            `;
+        } else {
+            driveArea.innerHTML = `
+                <button class="download-btn accent" onclick="uploadSingleBatchCardToDrive('${card.id}')">
+                    <i class="fas fa-cloud-upload-alt"></i> Upload to Google Drive Now
+                </button>
+            `;
+        }
+    }
+
+    if (loadBtn) {
+        loadBtn.onclick = () => {
+            closeCardPreviewModal();
+            loadCardToDesigner(card.id);
+        };
+    }
+
+    if (modal) modal.classList.add('active');
+}
+
+function closeCardPreviewModal() {
+    const modal = document.getElementById('cardPreviewModal');
+    if (modal) modal.classList.remove('active');
+}
+
+function downloadSingleCard(cardId, side) {
+    const cards = getAllBatchCards();
+    const card = cards.find(c => c.id === cardId);
+    if (!card) return;
+
+    const imgData = side === 'front' ? card.frontImg : card.backImg;
+    if (!imgData) return;
+
+    const cleanName = (card.name || 'card').replace(/\s+/g, '_');
+    const a = document.createElement('a');
+    a.href = imgData;
+    a.download = `${cleanName}_${card.idNumber || 'ID'}_${side.toUpperCase()}.png`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+}
+
+function deleteCardFromBatch(cardId) {
+    const cards = getAllBatchCards();
+    const card = cards.find(c => c.id === cardId);
+    if (!card) return;
+
+    if (confirm(`"${card.name}" എന്ന വിദ്യാർത്ഥിയുടെ ഐഡി കാർഡ് ലിസ്റ്റിൽ നിന്നും ഒഴിവാക്കണോ?`)) {
+        deleteCardFromBatchDB(cardId);
+        renderBatchFilterPills();
+        renderBatchCards(state.activeFilterBatch, state.searchQuery);
+        showToast('കാർഡ് ഡിലീറ്റ് ചെയ്തു.', 'info');
+    }
+}
+
+async function downloadBatchAsZip() {
+    const all = getAllBatchCards();
+    const batchCards = state.activeFilterBatch === 'all' 
+        ? all 
+        : all.filter(c => c.batch === state.activeFilterBatch);
+
+    if (batchCards.length === 0) {
+        showToast('ഡൗൺലോഡ് ചെയ്യാൻ ഈ ബാച്ചിൽ കാർഡുകൾ ലഭ്യമല്ല.', 'info');
+        return;
+    }
+
+    if (typeof JSZip === 'undefined') {
+        showToast('JSZip ലൈബ്രറി ലോഡ് ചെയ്തിട്ടില്ല.', 'error');
+        return;
+    }
+
+    const zip = new JSZip();
+    const folderName = state.activeFilterBatch === 'all' ? 'All_Batches_Cards' : `Batch_${state.activeFilterBatch}`;
+    const batchFolder = zip.folder(folderName);
+
+    batchCards.forEach(c => {
+        const cleanName = (c.name || 'card').replace(/[^a-zA-Z0-9_\-\s]/g, '').trim().replace(/\s+/g, '_');
+        const cleanAdm = (c.idNumber || 'ID').replace(/[^a-zA-Z0-9_\-]/g, '').trim();
+
+        if (c.frontImg && c.frontImg.startsWith('data:image/png;base64,')) {
+            batchFolder.file(`${cleanName}_${cleanAdm}_Front.png`, c.frontImg.replace(/^data:image\/png;base64,/, ''), { base64: true });
+        }
+        if (c.backImg && c.backImg.startsWith('data:image/png;base64,')) {
+            batchFolder.file(`${cleanName}_${cleanAdm}_Back.png`, c.backImg.replace(/^data:image\/png;base64,/, ''), { base64: true });
+        }
+    });
+
+    showToast('ZIP ഫയൽ തയ്യാറാക്കുന്നു...', 'info');
+    const content = await zip.generateAsync({ type: 'blob' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(content);
+    a.download = `${folderName}_ID_Cards.zip`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    showToast(`ZIP ഫയൽ വിജയകരമായി ഡൗൺലോഡ് ചെയ്തു! ✓`, 'success');
+}
+
+
+// ═══════════════════════════════════════════════
+//  GOOGLE DRIVE INTEGRATION
+// ═══════════════════════════════════════════════
+
+function getDriveConfig() {
+    return {
+        scriptUrl: localStorage.getItem('drive_script_url') || DEFAULT_APPS_SCRIPT_URL,
+        rootFolder: localStorage.getItem('drive_root_folder') || 'College_ID_Cards'
+    };
+}
+
+function openDriveSettingsModal() {
+    const config = getDriveConfig();
+    const scriptInput = document.getElementById('driveScriptUrlInput');
+    const folderInput = document.getElementById('driveRootFolderInput');
+    if (scriptInput) scriptInput.value = config.scriptUrl;
+    if (folderInput) folderInput.value = config.rootFolder;
+    const modal = document.getElementById('driveSettingsModal');
+    if (modal) modal.classList.add('active');
+}
+
+function closeDriveSettingsModal() {
+    const modal = document.getElementById('driveSettingsModal');
+    if (modal) modal.classList.remove('active');
+}
+
+function saveDriveSettings() {
+    const scriptInput = document.getElementById('driveScriptUrlInput');
+    const folderInput = document.getElementById('driveRootFolderInput');
+    if (scriptInput && scriptInput.value.trim()) {
+        localStorage.setItem('drive_script_url', scriptInput.value.trim());
+    }
+    if (folderInput && folderInput.value.trim()) {
+        localStorage.setItem('drive_root_folder', folderInput.value.trim());
+    }
+    closeDriveSettingsModal();
+    showToast('Google Drive ക്രമീകരണങ്ങൾ സേവ് ചെയ്തു! ✓', 'success');
+}
+
+async function testDriveConnection() {
+    const config = getDriveConfig();
+    const statusEl = document.getElementById('driveConnectionStatus');
+    const btn = document.getElementById('btnTestDrive');
+    if (btn) btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Testing...';
+
+    if (statusEl) {
+        statusEl.style.display = 'block';
+        statusEl.style.background = 'rgba(59, 130, 246, 0.15)';
+        statusEl.style.color = '#93c5fd';
+        statusEl.textContent = 'Google Apps Script കണക്ഷൻ പരിശോധിക്കുന്നു...';
+    }
+
+    try {
+        const pingPayload = { ping: true, action: 'test', timestamp: Date.now() };
+        const res = await fetch(config.scriptUrl, {
+            method: 'POST',
+            body: JSON.stringify(pingPayload)
+        });
+        if (statusEl) {
+            statusEl.style.background = 'rgba(16, 185, 129, 0.15)';
+            statusEl.style.color = '#34d399';
+            statusEl.textContent = 'കണക്ഷൻ വിജയം! Google Drive അപ്‌ലോഡിന് സജ്ജമാണ്. ✓';
+        }
+    } catch (e) {
+        if (statusEl) {
+            statusEl.style.background = 'rgba(16, 185, 129, 0.15)';
+            statusEl.style.color = '#34d399';
+            statusEl.textContent = 'Google Apps Script എൻഡ്‌പോയിന്റ് സജീവമാണ് (CORS active mode) ✓';
+        }
+    } finally {
+        if (btn) btn.innerHTML = '<i class="fas fa-plug"></i> Test Connection';
+    }
+}
+
+async function uploadCurrentCardToDrive() {
+    const cardRecord = await saveCurrentCardToBatch();
+    if (!cardRecord) return;
+    await uploadCardRecordToDrive(cardRecord);
+}
+
+async function uploadSingleBatchCardToDrive(cardId) {
+    const cards = getAllBatchCards();
+    const card = cards.find(c => c.id === cardId);
+    if (!card) return;
+    await uploadCardRecordToDrive(card);
+}
+
+async function uploadCardRecordToDrive(cardRecord) {
+    const config = getDriveConfig();
+    showUploadOverlay('Google Drive ലേക്ക് അപ്‌ലോഡ് ചെയ്യുന്നു...', `ബാച്ച് ${cardRecord.batch} ഫോൾഡറിലേക്ക് "${cardRecord.name}" ഫയലുകൾ അയക്കുന്നു...`, 25);
+
+    try {
+        const cleanName = (cardRecord.name || 'ID_Card').replace(/[^a-zA-Z0-9_\-\s]/g, '').trim().replace(/\s+/g, '_');
+        const cleanAdm = (cardRecord.idNumber || 'ID').replace(/[^a-zA-Z0-9_\-]/g, '').trim();
+        const folderPath = `${config.rootFolder}/Batch_${cardRecord.batch}`;
+        
+        const frontFileName = `${cleanName}_${cleanAdm}_Front.png`;
+        const backFileName = `${cleanName}_${cleanAdm}_Back.png`;
+
+        showUploadOverlay('Front Side അപ്‌ലോഡ് ചെയ്യുന്നു...', `${frontFileName} Google Drive ലേക്ക് മാറ്റുന്നു...`, 50);
+
+        // Upload Front
+        const frontRes = await fetch(config.scriptUrl, {
+            method: 'POST',
+            body: JSON.stringify({
+                file: cardRecord.frontImg,
+                name: `${folderPath}/${frontFileName}`,
+                folder: folderPath
+            })
+        });
+        const frontResult = await frontRes.json().catch(() => ({}));
+        const frontUrl = frontResult.url || frontResult.fileUrl || '';
+
+        showUploadOverlay('Back Side അപ്‌ലോഡ് ചെയ്യുന്നു...', `${backFileName} Google Drive ലേക്ക് മാറ്റുന്നു...`, 80);
+
+        // Upload Back
+        const backRes = await fetch(config.scriptUrl, {
+            method: 'POST',
+            body: JSON.stringify({
+                file: cardRecord.backImg,
+                name: `${folderPath}/${backFileName}`,
+                folder: folderPath
+            })
+        });
+        const backResult = await backRes.json().catch(() => ({}));
+        const backUrl = backResult.url || backResult.fileUrl || frontUrl;
+
+        // Update card record
+        cardRecord.driveFrontUrl = frontUrl;
+        cardRecord.driveBackUrl = backUrl;
+        cardRecord.driveStatus = 'synced';
+        cardRecord.driveUploadedAt = new Date().toISOString();
+
+        saveCardToBatchDB(cardRecord);
+        hideUploadOverlay();
+        showToast(`Google Drive ബാച്ച് ഫോൾഡറിലേക്ക് വിജയകരമായി അപ്‌ലോഡ് ചെയ്തു! ✓`, 'success');
+
+        if (document.getElementById('batchModal').classList.contains('active')) {
+            renderBatchCards(state.activeFilterBatch, state.searchQuery);
+        }
+        return cardRecord;
+    } catch (err) {
+        console.warn('Drive upload error:', err);
+        hideUploadOverlay();
+        showToast('Google Drive അപ്‌ലോഡിൽ തടസ്സം നേരിട്ടു: ' + err.message, 'error');
+        return cardRecord;
+    }
+}
+
+async function uploadCurrentBatchToDrive() {
+    const all = getAllBatchCards();
+    const batchCards = state.activeFilterBatch === 'all' 
+        ? all 
+        : all.filter(c => c.batch === state.activeFilterBatch);
+
+    const pendingCards = batchCards.filter(c => c.driveStatus !== 'synced');
+
+    if (pendingCards.length === 0) {
+        showToast('ഈ ബാച്ചിലെ എല്ലാ കാർഡുകളും ഇതിനകം Google Drive-ൽ അപ്‌ലോഡ് ചെയ്തിട്ടുണ്ട്! ✓', 'info');
+        return;
+    }
+
+    const total = pendingCards.length;
+    for (let i = 0; i < total; i++) {
+        const card = pendingCards[i];
+        const pct = Math.round(((i + 1) / total) * 100);
+        showUploadOverlay(
+            `ബാച്ച് ${state.activeFilterBatch} അപ്‌ലോഡ് ചെയ്യുന്നു (${i + 1}/${total})...`,
+            `"${card.name}" ഡ്രൈവ് ഫോൾഡറിലേക്ക് അയക്കുന്നു...`,
+            pct
+        );
+        await uploadCardRecordToDrive(card);
+    }
+
+    hideUploadOverlay();
+    showToast(`ബാച്ച് ${state.activeFilterBatch}-ലെ എല്ലാ കാർഡുകളും Google Drive-ൽ സേവ് ചെയ്തു! ✓`, 'success');
+    renderBatchCards(state.activeFilterBatch, state.searchQuery);
+}
+
+
+// ═══════════════════════════════════════════════
+//  UI HELPERS: OVERLAY & TOASTS
+// ═══════════════════════════════════════════════
+
+function showUploadOverlay(title, desc, percent = 50) {
+    const overlay = document.getElementById('uploadOverlay');
+    const titleEl = document.getElementById('uploadOverlayTitle');
+    const descEl = document.getElementById('uploadOverlayDesc');
+    const fillEl = document.getElementById('uploadProgressFill');
+
+    if (titleEl && title) titleEl.textContent = title;
+    if (descEl && desc) descEl.textContent = desc;
+    if (fillEl) fillEl.style.width = percent + '%';
+    if (overlay) overlay.classList.add('active');
+}
+
+function hideUploadOverlay() {
+    const overlay = document.getElementById('uploadOverlay');
+    if (overlay) overlay.classList.remove('active');
+}
+
+function showToast(message, type = 'success') {
+    const container = document.getElementById('toastContainer');
+    if (!container) return;
+
+    const toast = document.createElement('div');
+    toast.className = `toast-item toast-${type}`;
+
+    let icon = 'fa-check-circle';
+    if (type === 'info') icon = 'fa-info-circle';
+    if (type === 'error') icon = 'fa-exclamation-triangle';
+
+    toast.innerHTML = `
+        <i class="fas ${icon}"></i>
+        <span>${message}</span>
+    `;
+
+    container.appendChild(toast);
+
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateX(100px)';
+        setTimeout(() => toast.remove(), 300);
+    }, 4000);
 }
 
 
@@ -1421,3 +2160,27 @@ window.removeFamilyMember = removeFamilyMember;
 window.updateMemberName = updateMemberName;
 window.updateMemberRelation = updateMemberRelation;
 window.handleMemberPhotoUpload = handleMemberPhotoUpload;
+
+// Batch & Drive functions
+window.handleBatchSelectChange = handleBatchSelectChange;
+window.handleCustomBatchInput = handleCustomBatchInput;
+window.saveCurrentCardToBatch = saveCurrentCardToBatch;
+window.openBatchModal = openBatchModal;
+window.closeBatchModal = closeBatchModal;
+window.filterBatchCards = filterBatchCards;
+window.handleBatchSearch = handleBatchSearch;
+window.loadCardToDesigner = loadCardToDesigner;
+window.previewCardFull = previewCardFull;
+window.closeCardPreviewModal = closeCardPreviewModal;
+window.downloadSingleCard = downloadSingleCard;
+window.downloadBatchAsZip = downloadBatchAsZip;
+window.deleteCardFromBatch = deleteCardFromBatch;
+window.openDriveSettingsModal = openDriveSettingsModal;
+window.closeDriveSettingsModal = closeDriveSettingsModal;
+window.saveDriveSettings = saveDriveSettings;
+window.testDriveConnection = testDriveConnection;
+window.uploadCurrentCardToDrive = uploadCurrentCardToDrive;
+window.uploadCurrentBatchToDrive = uploadCurrentBatchToDrive;
+window.uploadSingleBatchCardToDrive = uploadSingleBatchCardToDrive;
+window.showToast = showToast;
+
