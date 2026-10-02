@@ -44,7 +44,9 @@ let state = {
     activeFilterBatch: 'all',
     searchQuery: '',
     currentControlTab: 'designer', // designer | recent
+    editingCardId: null,
     userPhoto: null,
+    userPhotoRawSrc: null,
     logoImage: null,
     qrImage: null,
     // Photo position (for drag)
@@ -168,6 +170,7 @@ function loadSampleImages() {
     const studentImg = new Image();
     studentImg.onload = () => {
         state.userPhoto = studentImg;
+        state.userPhotoRawSrc = 'assets/student_sample.jpg';
         if (photoControls) photoControls.classList.remove('hidden');
         if (photoDragOverlay) photoDragOverlay.classList.add('active');
         updateDragOverlayPosition();
@@ -459,33 +462,122 @@ function handleMemberPhotoUpload(index, event) {
 //  STUDENT PHOTO HANDLING & DRAG
 // ═══════════════════════════════════════════════
 
+// ──── ROBUST PHOTO LOADING & SAFE CROPPING ────
+function loadPhotoSource(src, offsetX = 0, offsetY = 0, zoom = 100, onDone) {
+    if (!src) {
+        state.userPhoto = null;
+        state.userPhotoRawSrc = null;
+        state.photoOffsetX = 0;
+        state.photoOffsetY = 0;
+        state.photoZoom = 100;
+        if (photoZoomSlider) photoZoomSlider.value = 100;
+        if (zoomValueDisplay) zoomValueDisplay.textContent = '100%';
+        if (photoControls) photoControls.classList.add('hidden');
+        if (photoDragOverlay) photoDragOverlay.classList.remove('active');
+        const photoLabel = document.getElementById('photoLabel');
+        if (photoLabel) {
+            photoLabel.innerHTML = '<i class="fas fa-portrait"></i><span>ഫോട്ടോ അപ്ലോഡ് ചെയ്യുക</span>';
+        }
+        drawCard();
+        if (typeof onDone === 'function') onDone();
+        return;
+    }
+
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+        const naturalW = img.naturalWidth || img.width;
+        const naturalH = img.naturalHeight || img.height;
+
+        // If an image happens to be a full ID card canvas (650x1000),
+        // auto-crop the student photo frame so it NEVER nests recursively inside itself!
+        if (naturalW === 650 && naturalH === 1000) {
+            const cropCanvas = document.createElement('canvas');
+            cropCanvas.width = 202;
+            cropCanvas.height = 242;
+            const cropCtx = cropCanvas.getContext('2d');
+            // Photo slot on ID card is at (photoX: 220, photoY: 225, photoW: 210, photoH: 250).
+            // Inset by 4px to avoid outer/inner border strokes cleanly:
+            cropCtx.drawImage(img, 224, 229, 202, 242, 0, 0, 202, 242);
+            const croppedSrc = cropCanvas.toDataURL('image/png');
+            loadPhotoSource(croppedSrc, offsetX, offsetY, zoom, onDone);
+            return;
+        }
+
+        state.userPhoto = img;
+        state.userPhotoRawSrc = src;
+        state.photoOffsetX = offsetX || 0;
+        state.photoOffsetY = offsetY || 0;
+        state.photoZoom = zoom || 100;
+
+        if (photoZoomSlider) photoZoomSlider.value = state.photoZoom;
+        if (zoomValueDisplay) zoomValueDisplay.textContent = state.photoZoom + '%';
+        if (photoControls) photoControls.classList.remove('hidden');
+        if (photoDragOverlay) photoDragOverlay.classList.add('active');
+
+        const photoLabel = document.getElementById('photoLabel');
+        if (photoLabel) {
+            photoLabel.innerHTML = '<i class="fas fa-check-circle" style="color:#34d399"></i><span>ഫോട്ടോ ലോഡ് ചെയ്തു ✓</span>';
+        }
+
+        updateDragOverlayPosition();
+        drawCard();
+        if (typeof onDone === 'function') onDone();
+    };
+    img.onerror = () => {
+        console.warn('Failed to load user photo:', src);
+        if (typeof onDone === 'function') onDone();
+    };
+    img.src = src;
+}
+
+function extractAndSetStudentPhotoFromCard(card) {
+    if (!card || !card.frontImg) {
+        loadPhotoSource(null);
+        return;
+    }
+    const fullImg = new Image();
+    fullImg.crossOrigin = 'anonymous';
+    fullImg.onload = () => {
+        const naturalW = fullImg.naturalWidth || fullImg.width;
+        const naturalH = fullImg.naturalHeight || fullImg.height;
+
+        if (naturalW === 650 && naturalH === 1000) {
+            const cropCanvas = document.createElement('canvas');
+            cropCanvas.width = 202;
+            cropCanvas.height = 242;
+            const cropCtx = cropCanvas.getContext('2d');
+            cropCtx.drawImage(fullImg, 224, 229, 202, 242, 0, 0, 202, 242);
+            const croppedDataUrl = cropCanvas.toDataURL('image/png');
+
+            loadPhotoSource(croppedDataUrl, 0, 0, 100, () => {
+                // Permanently update localStorage for this card so it never needs extraction again
+                card.studentPhoto = croppedDataUrl;
+                card.photoOffsetX = 0;
+                card.photoOffsetY = 0;
+                card.photoZoom = 100;
+                saveCardToBatchDB(card);
+            });
+        } else {
+            // Not a full card canvas, treat directly as photo
+            loadPhotoSource(card.frontImg, card.photoOffsetX || 0, card.photoOffsetY || 0, card.photoZoom || 100);
+        }
+    };
+    fullImg.onerror = () => {
+        loadPhotoSource(null);
+    };
+    fullImg.src = card.frontImg;
+}
+
 function handlePhotoUpload(e) {
     const file = e.target.files[0];
     if (!file) return;
 
     const reader = new FileReader();
     reader.onload = function(event) {
-        const img = new Image();
-        img.onload = function() {
-            state.userPhoto = img;
-            state.photoOffsetX = 0;
-            state.photoOffsetY = 0;
-            state.photoZoom = 100;
-            if (photoZoomSlider) photoZoomSlider.value = 100;
-            if (zoomValueDisplay) zoomValueDisplay.textContent = '100%';
-            if (photoControls) photoControls.classList.remove('hidden');
-            if (photoDragOverlay) photoDragOverlay.classList.add('active');
-            updateDragOverlayPosition();
-            drawCard();
-        };
-        img.src = event.target.result;
+        loadPhotoSource(event.target.result, 0, 0, 100);
     };
     reader.readAsDataURL(file);
-
-    const label = document.getElementById('photoLabel');
-    if (label) {
-        label.innerHTML = '<i class="fas fa-check-circle" style="color:#34d399"></i><span>ഫോട്ടോ ലോഡ് ചെയ്തു ✓</span>';
-    }
 }
 
 function handleLogoUpload(e) {
@@ -1989,6 +2081,10 @@ function initBatchDatabase() {
             phone: '9562937331, 7561085134',
             frontImg: 'assets/student_sample.jpg',
             backImg: 'assets/father_sample.jpg',
+            studentPhoto: 'assets/student_sample.jpg',
+            photoOffsetX: 0,
+            photoOffsetY: 0,
+            photoZoom: 100,
             driveFrontUrl: null,
             driveBackUrl: null,
             driveStatus: 'pending',
@@ -2047,8 +2143,31 @@ async function saveCurrentCardToBatch() {
             addr1 = (personAddressInput && personAddressInput.value) || '';
         }
 
+        // Determine clean portrait photo source (never the 650x1000 full ID card)
+        let studentPhotoSrc = state.userPhotoRawSrc;
+        if (!studentPhotoSrc && state.userPhoto && state.userPhoto.src) {
+            const w = state.userPhoto.naturalWidth || state.userPhoto.width;
+            const h = state.userPhoto.naturalHeight || state.userPhoto.height;
+            if (w !== 650 || h !== 1000) {
+                studentPhotoSrc = state.userPhoto.src;
+            }
+        }
+
+        // Deep copy family members for visitor card
+        let familyData = null;
+        if (state.currentCardType === 'visitor' && Array.isArray(state.familyMembers)) {
+            familyData = state.familyMembers.map(m => ({
+                name: m.name || '',
+                relation: m.relation || '',
+                photoSrc: m.photoSrc || (m.photo ? m.photo.src : null)
+            }));
+        }
+
+        const cards = getAllBatchCards();
+        const existing = state.editingCardId ? cards.find(c => c.id === state.editingCardId) : null;
+
         const cardRecord = {
-            id: 'card_' + Date.now(),
+            id: state.editingCardId || ('card_' + Date.now()),
             batch: currentBatch,
             institution: state.currentInstitution,
             institutionName: INSTITUTIONS[state.currentInstitution].name,
@@ -2062,12 +2181,18 @@ async function saveCurrentCardToBatch() {
             blood: blood,
             guardian: guardian,
             validity: validity,
+            studentPhoto: studentPhotoSrc,
+            photoOffsetX: state.photoOffsetX || 0,
+            photoOffsetY: state.photoOffsetY || 0,
+            photoZoom: state.photoZoom || 100,
+            familyMembers: familyData,
             frontImg: frontDataUrl,
             backImg: backDataUrl,
-            driveFrontUrl: null,
-            driveBackUrl: null,
-            driveStatus: 'pending',
-            savedAt: new Date().toISOString()
+            driveFrontUrl: existing ? existing.driveFrontUrl : null,
+            driveBackUrl: existing ? existing.driveBackUrl : null,
+            driveStatus: existing ? existing.driveStatus : 'pending',
+            savedAt: existing ? existing.savedAt : new Date().toISOString(),
+            updatedAt: new Date().toISOString()
         };
 
         saveCardToBatchDB(cardRecord);
@@ -2089,6 +2214,8 @@ async function saveCurrentCardToBatch() {
 
 // ──── RESET DESIGNER FORM (CLEARS MAIN INTERFACE) ────
 function resetDesignerForm() {
+    state.editingCardId = null;
+
     // Clear visitor fields
     if (visitorStudentNameInput) visitorStudentNameInput.value = '';
     if (visitorStudentIdInput) visitorStudentIdInput.value = '';
@@ -2107,6 +2234,7 @@ function resetDesignerForm() {
 
     // Clear photo & drag
     state.userPhoto = null;
+    state.userPhotoRawSrc = null;
     state.photoOffsetX = 0;
     state.photoOffsetY = 0;
     state.photoZoom = 100;
@@ -2405,6 +2533,8 @@ function loadCardToDesigner(cardId) {
     const card = cards.find(c => c.id === cardId);
     if (!card) return;
 
+    state.editingCardId = card.id;
+
     if (card.institution) switchInstitution(card.institution);
     if (card.cardType) switchCardType(card.cardType);
 
@@ -2438,6 +2568,29 @@ function loadCardToDesigner(cardId) {
         if (visitorStudentAddr1Input && card.addr1) visitorStudentAddr1Input.value = card.addr1;
         if (visitorStudentAddr2Input && card.addr2) visitorStudentAddr2Input.value = card.addr2;
         if (personBloodInput && card.blood) personBloodInput.value = card.blood;
+
+        // Restore visitor family members if saved on card
+        if (Array.isArray(card.familyMembers) && card.familyMembers.length > 0) {
+            state.familyMembers = card.familyMembers.map(m => {
+                const memberObj = {
+                    name: m.name || '',
+                    relation: m.relation || '',
+                    photo: null,
+                    photoSrc: m.photoSrc || null
+                };
+                if (m.photoSrc) {
+                    const fmImg = new Image();
+                    fmImg.crossOrigin = 'anonymous';
+                    fmImg.onload = () => {
+                        memberObj.photo = fmImg;
+                        drawCard();
+                    };
+                    fmImg.src = m.photoSrc;
+                }
+                return memberObj;
+            });
+            renderFamilyMembersList();
+        }
     } else {
         if (personNameInput) personNameInput.value = card.name || '';
         if (personIdInput) personIdInput.value = card.idNumber || '';
@@ -2449,20 +2602,14 @@ function loadCardToDesigner(cardId) {
         if (personAddressInput && card.addr1) personAddressInput.value = card.addr1;
     }
 
-    // Restore photo if stored on card
-    if (card.frontImg && card.frontImg.startsWith('data:image/')) {
-        const img = new Image();
-        img.onload = () => {
-            state.userPhoto = img;
-            state.photoOffsetX = 0;
-            state.photoOffsetY = 0;
-            state.photoZoom = 100;
-            if (photoControls) photoControls.classList.remove('hidden');
-            if (photoDragOverlay) photoDragOverlay.classList.add('active');
-            updateDragOverlayPosition();
-            drawCard();
-        };
-        img.src = card.frontImg;
+    // Restore portrait photo cleanly - NEVER load full card frontImg directly as state.userPhoto!
+    if (card.studentPhoto && card.studentPhoto !== card.frontImg) {
+        loadPhotoSource(card.studentPhoto, card.photoOffsetX || 0, card.photoOffsetY || 0, card.photoZoom || 100);
+    } else if (card.frontImg) {
+        // Fallback for older saved cards: cleanly crop student photo from the front canvas!
+        extractAndSetStudentPhotoFromCard(card);
+    } else {
+        loadPhotoSource(null);
     }
 
     closeBatchModal();
